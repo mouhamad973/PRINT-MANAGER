@@ -1,0 +1,156 @@
+// Schéma ARKSEN PRINT MANAGER.
+// Conventions : modèles en PascalCase, tables et colonnes en snake_case.
+// Toute table propre à une entreprise porte `tenant_id` et une politique RLS (voir les migrations).
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Paramètres globaux de la plateforme, hors de tout tenant.
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("system_settings")
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+/// Entreprise cliente : l'unité d'isolation des données.
+model Tenant {
+  id           String       @id @default(uuid(7)) @db.Uuid
+  name         String
+  slug         String       @unique
+  status       TenantStatus @default(ACTIVE)
+  contactName  String?      @map("contact_name")
+  contactEmail String?      @map("contact_email")
+  contactPhone String?      @map("contact_phone")
+  address      String?
+  city         String?
+  country      String?
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  users     User[]
+  auditLogs AuditLog[]
+
+  @@map("tenants")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  CLIENT_ADMIN
+  PRINT_MANAGER
+  TECHNICIAN
+  STOCK_MANAGER
+  USER
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+/// Utilisateur. Les champs de base sont ceux attendus par Better Auth.
+/// Un Super Administrateur Arksen n'appartient à aucune entreprise (`tenantId` nul).
+model User {
+  id            String     @id
+  name          String
+  email         String     @unique
+  emailVerified Boolean    @default(false) @map("email_verified")
+  image         String?
+  role          UserRole   @default(USER)
+  status        UserStatus @default(ACTIVE)
+  tenantId      String?    @map("tenant_id") @db.Uuid
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant   Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  sessions Session[]
+  accounts Account[]
+
+  @@index([tenantId])
+  @@map("users")
+}
+
+model Session {
+  id        String   @id
+  token     String   @unique
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+/// Identifiants d'un utilisateur. Le mot de passe est haché par Better Auth (scrypt).
+model Account {
+  id                    String    @id
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id")
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.Timestamptz(3)
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.Timestamptz(3)
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([identifier])
+  @@map("verifications")
+}
+
+/// Journal d'audit, en ajout seul. `tenantId` nul : événement de plateforme.
+model AuditLog {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  tenantId    String?  @map("tenant_id") @db.Uuid
+  actorUserId String?  @map("actor_user_id")
+  actorEmail  String?  @map("actor_email")
+  action      String
+  targetType  String?  @map("target_type")
+  targetId    String?  @map("target_id")
+  metadata    Json?
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@map("audit_logs")
+}

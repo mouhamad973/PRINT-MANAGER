@@ -1,0 +1,43 @@
+# Dépendances
+node_modules/
+.pnpm-store/
+
+# Sorties de compilation
+dist/
+.next/
+out/
+*.tsbuildinfo
+.turbo/
+coverage/
+
+# Fichier généré par Next.js
+next-env.d.ts
+
+# Client Prisma généré
+packages/database/src/generated/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+
+# Secrets et environnements locaux
+.env
+.env.*
+!.env.example
+
+# Agent Windows : données locales
+*.sqlite
+*.sqlite3
+
+# Divers
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/

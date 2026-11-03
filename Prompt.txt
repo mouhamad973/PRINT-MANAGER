@@ -1,0 +1,525 @@
+# PROJET : ARKSEN PRINT MANAGER
+## Instructions de développement – Architecture hybride Cloud + On-Premise
+
+Tu es un architecte logiciel senior et un développeur Full Stack spécialisé dans les applications SaaS, les systèmes de supervision industrielle, les imprimantes réseau et les applications métier.
+
+Ta mission est de concevoir et développer une application professionnelle appelée **ARKSEN PRINT MANAGER**.
+
+Il s'agit d'une plateforme de gestion et de supervision des parcs d'impression numérique, avec un moteur intelligent de calcul de consommation toner basé sur l'aplat CMJN.
+
+L'objectif est de produire un véritable logiciel commercialisable, évolutif, sécurisé et multi-clients.
+
+## 1. ARCHITECTURE GÉNÉRALE
+
+Le projet doit adopter une architecture hybride comprenant :
+
+**A. Une application Web centrale**
+- Accessible depuis un navigateur.
+- Hébergée sur un serveur Cloud.
+- Gestion de plusieurs entreprises clientes.
+- Tableau de bord central.
+- Gestion des équipements, impressions, toners, stocks et coûts.
+- Administration des clients et des utilisateurs.
+
+**B. Un mode On-Premise**
+- Possibilité d'installer la plateforme complète chez un client.
+- Hébergement local des données.
+- Fonctionnement indépendant du Cloud.
+- Utilisation du même code source et des mêmes modules métier.
+- Configuration adaptée au déploiement local.
+
+**C. Un agent Windows**
+- Installation sur le réseau local du client.
+- Communication avec les imprimantes par SNMP.
+- Collecte des compteurs et informations disponibles.
+- Stockage local des relevés.
+- Synchronisation automatique avec le serveur central.
+- Fonctionnement autonome sans Internet.
+
+## 2. STACK TECHNIQUE OBLIGATOIRE
+
+Frontend :
+- Next.js App Router
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+- Lucide React
+- Recharts
+- React Hook Form
+- Zod
+- TanStack Query
+
+Backend :
+- NestJS
+- TypeScript
+- API REST
+- Prisma ORM
+- Better Auth
+- Swagger / OpenAPI
+
+Base de données :
+- PostgreSQL
+
+Cache et traitements :
+- Redis
+- BullMQ
+
+Services techniques :
+- Python
+- FastAPI
+- PySNMP
+- PyMuPDF
+- Ghostscript
+- Gestion des profils ICC pour l'analyse couleur
+
+Agent Windows :
+- Python
+- SQLite
+- PySNMP
+- Service Windows
+- Packaging avec PyInstaller
+
+Infrastructure :
+- Docker
+- Docker Compose
+- Nginx
+- pnpm
+- Turborepo
+
+## 3. ORGANISATION DU PROJET
+
+Créer un monorepo structuré :
+
+- apps/web : application Next.js.
+- apps/api : backend NestJS.
+- services/collector : agent Windows.
+- services/analytics : analyse PDF et calcul CMJN.
+- services/workers : tâches asynchrones.
+- packages/shared-types : types partagés.
+- packages/validation : schémas de validation.
+- infrastructure : configurations Docker et déploiement.
+- docs : documentation technique.
+
+Ne pas mélanger les responsabilités des différents services.
+
+## 4. IDENTITÉ VISUELLE
+
+Créer une interface professionnelle de type logiciel SaaS industriel.
+
+Nom : ARKSEN PRINT MANAGER.
+
+Prévoir :
+- Une sidebar élégante.
+- Un header avec recherche.
+- Des notifications.
+- Un tableau de bord moderne.
+- Des cartes statistiques.
+- Des tableaux avancés.
+- Des graphiques interactifs.
+- Des filtres dynamiques.
+- Des formulaires professionnels.
+- Une interface responsive.
+
+Prévoir les thèmes clair et sombre.
+
+L'interface doit être sobre, moderne et adaptée à un usage quotidien par des responsables techniques et financiers.
+
+## 5. MODULES FONCTIONNELS
+
+Développer les modules suivants :
+
+1. Dashboard général.
+2. Gestion des entreprises clientes.
+3. Gestion des sites.
+4. Gestion des utilisateurs et permissions.
+5. Gestion du parc machines.
+6. Gestion des compteurs.
+7. Gestion des impressions.
+8. Gestion de l'aplat CMJN.
+9. Analyse PDF.
+10. Calcul de consommation toner.
+11. Gestion des toners.
+12. Gestion des stocks.
+13. Gestion du papier.
+14. Calcul des coûts d'impression.
+15. Gestion des contrats.
+16. Maintenance.
+17. Gestion des interventions.
+18. Alertes.
+19. Rapports.
+20. Administration système.
+
+Chaque module doit avoir ses propres composants, services, validations et endpoints.
+
+## 6. MOTEUR DE CALCUL TONER CMJN
+
+Développer un moteur mathématique indépendant et testable.
+
+Il doit calculer séparément :
+
+- Cyan.
+- Magenta.
+- Jaune.
+- Noir.
+
+Paramètres configurables :
+- Capacité toner en grammes.
+- Rendement constructeur.
+- Couverture de référence.
+- Modèle de machine.
+- Format papier.
+- Type de support.
+- Coefficient de calibration.
+
+Formule initiale :
+
+Consommation de référence par page = poids du toner / rendement constructeur.
+
+Consommation théorique = consommation de référence × (couverture réelle / couverture de référence) × nombre de pages.
+
+Calculer chaque canal indépendamment.
+
+Afficher :
+- Consommation théorique en grammes.
+- Consommation réelle observée ou estimée.
+- Écart en grammes.
+- Écart en pourcentage.
+- Coût par page.
+- Consommation pour 1 000 pages.
+
+Ne jamais confondre niveau toner SNMP, consommation réelle mesurée et consommation théorique calculée.
+
+Prévoir une calibration progressive par modèle de machine et par équipement.
+
+## 7. ANALYSE DES FICHIERS PDF
+
+Créer un service Python d'analyse PDF.
+
+Fonctionnalités :
+- Importation de fichiers PDF.
+- Nombre de pages.
+- Format de chaque page.
+- Dimensions.
+- Orientation.
+- Couverture Cyan.
+- Couverture Magenta.
+- Couverture Jaune.
+- Couverture Noir.
+- Couverture cumulée.
+- Analyse page par page.
+- Moyenne globale du document.
+
+Utiliser une méthode de conversion et de séparation CMJN documentée, reproductible et adaptée aux profils ICC.
+
+Prévoir les PDF contenant des éléments RGB, CMYK, couleurs spéciales et transparences.
+
+Afficher un rapport de préproduction avec les consommations toner estimées.
+
+Ne pas assimiler le pourcentage de pixels colorés à un taux de couverture toner sans définir précisément la méthode de mesure.
+
+## 8. AGENT WINDOWS ARKSEN COLLECTOR
+
+Créer un service Windows autonome.
+
+Il doit :
+- Découvrir ou enregistrer les imprimantes du réseau.
+- Interroger les équipements via SNMP.
+- Collecter les compteurs.
+- Collecter les niveaux toner disponibles.
+- Collecter les états et erreurs disponibles.
+- Enregistrer les relevés dans SQLite.
+- Conserver les données en cas de coupure Internet.
+- Synchroniser automatiquement les données.
+- Gérer les erreurs réseau.
+- Reprendre les synchronisations interrompues.
+
+Prévoir une interface de configuration locale permettant :
+- D'enregistrer le serveur.
+- D'enregistrer l'identifiant de l'entreprise.
+- D'enregistrer l'identifiant de l'agent.
+- De configurer les imprimantes.
+- De configurer la fréquence de collecte.
+- De visualiser le statut de synchronisation.
+
+Créer un mécanisme sécurisé d'enregistrement de l'agent auprès du serveur.
+
+Le serveur doit pouvoir identifier chaque agent et vérifier son autorisation.
+
+## 9. SYNCHRONISATION HORS LIGNE
+
+Implémenter une architecture Transactional Outbox.
+
+Chaque événement doit avoir :
+- Un UUID.
+- Un identifiant de machine.
+- Un identifiant d'agent.
+- Un horodatage.
+- Une version de schéma.
+- Un statut de synchronisation.
+
+Prévoir :
+- Accusés de réception.
+- Idempotence.
+- Gestion des doublons.
+- Retry avec backoff exponentiel.
+- Gestion des erreurs.
+- Journal des synchronisations.
+- Conservation locale des événements non synchronisés.
+
+La synchronisation doit être automatique et ne nécessiter aucune intervention humaine.
+
+L'agent ne doit jamais supprimer un événement non confirmé par le serveur.
+
+Utiliser HTTPS et des identifiants d'agent sécurisés.
+
+## 10. MODE CLOUD ET ON-PREMISE
+
+Créer deux configurations de déploiement.
+
+Mode Cloud :
+- Serveur central.
+- Base PostgreSQL centrale.
+- Redis.
+- API.
+- Frontend.
+- Plusieurs entreprises clientes.
+- Un ou plusieurs agents Windows par entreprise.
+
+Mode On-Premise :
+- Déploiement Docker autonome.
+- PostgreSQL local.
+- Redis local.
+- API locale.
+- Frontend local.
+- Agent Windows connecté au serveur local.
+
+Les deux modes doivent utiliser le même socle applicatif.
+
+Ne pas créer deux applications différentes.
+
+Prévoir une configuration par environnement via variables d'environnement.
+
+## 11. MULTI-TENANT ET SÉCURITÉ
+
+Chaque entreprise doit avoir un espace isolé.
+
+Prévoir les rôles :
+- Super Administrateur Arksen.
+- Administrateur client.
+- Responsable impression.
+- Technicien.
+- Gestionnaire de stock.
+- Utilisateur.
+
+Implémenter :
+- Contrôle d'accès RBAC.
+- Isolation stricte des données par tenant.
+- Authentification sécurisée.
+- Gestion des sessions.
+- Protection des API.
+- Validation des données.
+- Journal d'audit.
+- Chiffrement des communications.
+- Gestion sécurisée des secrets.
+- Sauvegardes automatiques.
+
+Ne jamais faire confiance au tenant_id fourni par le frontend : le contexte de l'entreprise doit être vérifié côté serveur.
+
+## 12. BASE DE DONNÉES
+
+Créer un modèle relationnel complet.
+
+Prévoir notamment :
+
+- Users
+- Roles
+- Permissions
+- Tenants
+- Sites
+- Printers
+- PrinterModels
+- PrinterConnections
+- Agents
+- MeterReadings
+- PrintJobs
+- PrintJobPages
+- CoverageMeasurements
+- TonerModels
+- TonerCartridges
+- TonerInstallations
+- TonerReplacements
+- TonerConsumption
+- CalibrationProfiles
+- PaperStocks
+- StockMovements
+- Contracts
+- MaintenanceEvents
+- Alerts
+- Invoices
+- AuditLogs
+- SyncEvents
+
+Utiliser des clés étrangères, index, contraintes et historiques appropriés.
+
+Prévoir une stratégie de conservation des données historiques.
+
+## 13. TABLEAU DE BORD
+
+Créer un dashboard avec :
+
+- Nombre total de machines.
+- Machines en ligne.
+- Machines hors ligne.
+- Nombre d'impressions.
+- Volume couleur.
+- Volume noir et blanc.
+- Consommation toner par couleur.
+- Consommation théorique.
+- Consommation réelle.
+- Écart de consommation.
+- Coût moyen par page.
+- Alertes.
+- Stocks critiques.
+- Prévisions de consommation.
+
+Prévoir des filtres par :
+- Entreprise.
+- Site.
+- Machine.
+- Période.
+- Modèle.
+- Couleur.
+
+## 14. RAPPORTS
+
+Créer des rapports exportables en PDF, Excel et CSV.
+
+Rapports :
+- Production.
+- Consommation CMJN.
+- Consommation par machine.
+- Consommation par client.
+- Coûts d'impression.
+- Rendement toner.
+- Stocks.
+- Maintenance.
+- Rentabilité.
+
+## 15. QUALITÉ ET TESTS
+
+Créer des tests unitaires, fonctionnels et d'intégration.
+
+Tester particulièrement :
+- Calcul CMJN.
+- Calcul de consommation.
+- Conversion de formats.
+- Calcul des coûts.
+- Synchronisation hors ligne.
+- Idempotence.
+- Isolation multi-tenant.
+- Gestion des erreurs SNMP.
+- Analyse PDF.
+
+Prévoir des données de démonstration clairement séparées des données de production.
+
+## 16. DÉPLOIEMENT
+
+Créer :
+- Dockerfile pour chaque service.
+- Docker Compose Cloud.
+- Docker Compose On-Premise.
+- Configuration Nginx.
+- Variables d'environnement documentées.
+- Scripts de migration.
+- Scripts de sauvegarde.
+- Scripts de restauration.
+- Documentation d'installation.
+
+Prévoir un packaging installable de l'agent Windows.
+
+## 17. MÉTHODE DE DÉVELOPPEMENT
+
+Ne développe pas toute l'application en une seule opération.
+
+Procède par phases.
+
+PHASE 1 :
+Architecture, monorepo, dépendances, configuration et Docker.
+
+PHASE 2 :
+Base de données, authentification, multi-tenant et permissions.
+
+PHASE 3 :
+Interface générale, design system et dashboard.
+
+PHASE 4 :
+Gestion des clients, sites et parc machines.
+
+PHASE 5 :
+Compteurs, impressions et historique.
+
+PHASE 6 :
+Moteur de calcul CMJN et consommation toner.
+
+PHASE 7 :
+Analyse PDF.
+
+PHASE 8 :
+Agent Windows et collecte SNMP.
+
+PHASE 9 :
+Synchronisation hors ligne.
+
+PHASE 10 :
+Stocks, coûts, maintenance et alertes.
+
+PHASE 11 :
+Rapports et statistiques.
+
+PHASE 12 :
+Tests, sécurité et déploiement final.
+
+Après chaque phase :
+- Vérifie que le code compile.
+- Exécute les tests.
+- Corrige les erreurs.
+- Mets à jour PROJECT_STATUS.md.
+- Mets à jour la documentation.
+
+## 18. LIVRABLES
+
+Produire :
+- Code source complet.
+- Architecture documentée.
+- Schéma de base de données.
+- API documentée.
+- Application Web.
+- Backend.
+- Agent Windows.
+- Service d'analyse PDF.
+- Moteur de calcul CMJN.
+- Configuration Cloud.
+- Configuration On-Premise.
+- Documentation d'installation.
+- Documentation utilisateur.
+- Tests automatisés.
+
+## 19. CONSIGNE FINALE
+
+Commence par analyser le dossier de travail et les fichiers existants.
+
+Ne supprime et ne remplace aucun élément existant sans vérifier son utilité.
+
+Présente ensuite un plan d'implémentation et les décisions architecturales.
+
+Après validation du plan, commence la PHASE 1 et avance progressivement.
+
+Ne te contente pas de créer une maquette ou des pages statiques.
+
+Toutes les fonctionnalités développées doivent être réellement connectées au backend et à la base de données.
+
+Ne simule jamais une collecte SNMP, une synchronisation ou une consommation réelle sans identifier clairement les données de démonstration.
+
+Privilégie toujours la robustesse, la sécurité, la précision des calculs et la maintenabilité.
+
+**L'objectif final est de faire d'ARKSEN PRINT MANAGER une véritable solution professionnelle de Print Management commercialisable auprès de plusieurs entreprises.**

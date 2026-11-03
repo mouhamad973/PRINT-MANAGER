@@ -1,0 +1,3 @@
+# Fichier g?r? par Prisma.
+provider = "postgresql"
+

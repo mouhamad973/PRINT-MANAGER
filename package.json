@@ -1,0 +1,37 @@
+{
+  "name": "arksen-print-manager",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ARKSEN PRINT MANAGER - plateforme de gestion et de supervision des parcs d'impression",
+  "packageManager": "pnpm@10.34.9",
+  "engines": {
+    "node": ">=24",
+    "pnpm": ">=10 <11"
+  },
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "format": "prettier --write \"**/*.{ts,tsx,js,mjs,json,md,yaml,yml,css}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,json,md,yaml,yml,css}\"",
+    "db:generate": "pnpm --filter @arksen/database db:generate",
+    "db:migrate": "pnpm --filter @arksen/database db:migrate",
+    "db:deploy": "pnpm --filter @arksen/database db:deploy",
+    "stack:up": "docker compose up --build --detach --wait",
+    "stack:down": "docker compose down",
+    "stack:logs": "docker compose logs --follow",
+    "stack:smoke": "node scripts/smoke.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "eslint": "^9.39.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.5.0",
+    "prettier": "^3.6.2",
+    "turbo": "^2.11.10",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.46.0"
+  }
+}

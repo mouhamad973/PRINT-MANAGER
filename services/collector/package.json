@@ -1,0 +1,10 @@
+{
+  "name": "@arksen/collector",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "typecheck": "node ../../scripts/py.mjs -m mypy src tests",
+    "lint": "node ../../scripts/py.mjs -m ruff check .",
+    "test": "node ../../scripts/py.mjs -m pytest"
+  }
+}

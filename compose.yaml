@@ -1,0 +1,6 @@
+# Point d'entrée : `docker compose up`.
+# La définition de la stack se trouve dans infrastructure/ : les configurations
+# de production Cloud et On-Premise s'y ajouteront en Phase 10.
+include:
+  - path: infrastructure/compose/compose.dev.yaml
+    project_directory: .

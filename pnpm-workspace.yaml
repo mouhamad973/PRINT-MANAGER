@@ -1,0 +1,16 @@
+packages:
+  - apps/*
+  - services/*
+  - packages/*
+
+# Scripts d'installation autorisés (binaires natifs, moteurs Prisma).
+onlyBuiltDependencies:
+  - '@nestjs/core'
+  - '@prisma/client'
+  - '@prisma/engines'
+  - '@swc/core'
+  - esbuild
+  - msgpackr-extract
+  - prisma
+  - sharp
+  - unrs-resolver

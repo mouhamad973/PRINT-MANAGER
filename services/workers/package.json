@@ -1,0 +1,32 @@
+{
+  "name": "@arksen/workers",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/main.js",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "node --env-file-if-exists=../../.env --import=@swc-node/register/esm-register --watch src/main.ts",
+    "start": "node dist/main.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@arksen/shared-types": "workspace:*",
+    "@arksen/validation": "workspace:*",
+    "bullmq": "^6.5.4",
+    "ioredis": "^6.0.0"
+  },
+  "devDependencies": {
+    "@swc-node/register": "^1.12.1",
+    "@swc/core": "^1.16.21",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.39.0",
+    "typescript": "~5.9.3",
+    "vitest": "^5.1.0"
+  }
+}

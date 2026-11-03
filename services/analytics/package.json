@@ -1,0 +1,11 @@
+{
+  "name": "@arksen/analytics",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node ../../scripts/py.mjs -m uvicorn arksen_analytics.main:app --reload --port 8000",
+    "typecheck": "node ../../scripts/py.mjs -m mypy src tests",
+    "lint": "node ../../scripts/py.mjs -m ruff check .",
+    "test": "node ../../scripts/py.mjs -m pytest"
+  }
+}
