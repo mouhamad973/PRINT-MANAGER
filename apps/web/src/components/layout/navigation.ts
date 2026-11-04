@@ -4,6 +4,7 @@ import {
   Activity,
   AlertTriangle,
   Blocks,
+  BookOpenText,
   Building2,
   ClipboardList,
   Droplets,
@@ -45,13 +46,18 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-/** Les 20 modules fonctionnels du cahier des charges, plus les pages du socle. */
+/** Les 20 modules fonctionnels du cahier des charges, plus les pages du socle et les fiches techniques. */
 export const NAVIGATION: NavGroup[] = [
   {
     label: 'Supervision',
     items: [
+      {
+        label: 'Tableau de bord',
+        icon: LayoutDashboard,
+        href: '/dashboard',
+        permission: 'printers:read',
+      },
       { label: 'État de la plateforme', icon: Activity, href: '/' },
-      { label: 'Tableau de bord', icon: LayoutDashboard, phase: 3 },
       { label: 'Alertes', icon: AlertTriangle, phase: 8 },
     ],
   },
@@ -64,8 +70,14 @@ export const NAVIGATION: NavGroup[] = [
         href: '/tenants',
         permission: 'platform:tenants:manage',
       },
-      { label: 'Sites', icon: MapPin, phase: 3 },
-      { label: 'Machines', icon: Printer, phase: 3 },
+      { label: 'Sites', icon: MapPin, href: '/sites', permission: 'sites:read' },
+      { label: 'Machines', icon: Printer, href: '/machines', permission: 'printers:read' },
+      {
+        label: 'Fiches techniques',
+        icon: BookOpenText,
+        href: '/printer-models',
+        permission: 'printers:read',
+      },
       { label: 'Compteurs', icon: Gauge, phase: 4 },
       { label: 'Impressions', icon: ClipboardList, phase: 4 },
     ],

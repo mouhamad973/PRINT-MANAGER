@@ -1,14 +1,14 @@
 # État du projet ARKSEN PRINT MANAGER
 
-Dernière mise à jour : 3 novembre 2026.
+Dernière mise à jour : 4 novembre 2026.
 
 ## Avancement
 
 | Phase | Contenu                                      | État                               |
 | ----- | -------------------------------------------- | ---------------------------------- |
 | 1     | Architecture et configuration du projet      | Terminée et validée                |
-| 2     | Authentification et gestion des utilisateurs | Terminée, en attente de validation |
-| 3     | Dashboard et gestion du parc machines        | À faire                            |
+| 2     | Authentification et gestion des utilisateurs | Terminée et validée                |
+| 3     | Dashboard et gestion du parc machines        | Terminée, en attente de validation |
 | 4     | Compteurs et historique                      | À faire                            |
 | 5     | Moteur de calcul de consommation CMJN        | À faire                            |
 | 6     | Analyse PDF                                  | À faire                            |
@@ -87,6 +87,75 @@ Comportement en panne, vérifié sur la stack réelle :
 - **Licences AGPL :** PyMuPDF et Ghostscript, prévus en Phase 6, sont sous AGPL ou sous licence commerciale Artifex. À faire vérifier par un juriste avant toute commercialisation.
 - **Aucun commit :** le dépôt git est initialisé, mais rien n'a encore été commité.
 
+## Phase 3 : Dashboard et gestion du parc machines
+
+### Livré
+
+- **Tableau de bord** (`/dashboard`, page d'arrivée après connexion) : machines du parc, répartition par statut, par site et par fabricant, part des machines prêtes pour la collecte, et liste des machines à surveiller. Filtres par site et par type couleur. Uniquement des comptages réels : les indicateurs des phases suivantes sont annoncés avec leur phase, jamais simulés.
+- **Clients et sites** : les entreprises clientes existaient depuis la Phase 2. Les sites sont créés, modifiés et supprimés s'ils sont vides, avec le nombre de machines de chacun.
+- **Machines** : ajout et modification (nom, numéro de série unique par entreprise, site, modèle, emplacement, numéro d'inventaire, date d'installation, notes), liste filtrable par site, statut, type couleur et recherche (nom, série, adresse IP). La recherche de l'en-tête est active.
+- **Fiches techniques** : fabricant, modèle, couleur ou noir et blanc, technologie, format maximal, recto verso, vitesses, volumes mensuels maximal et recommandé. Un **catalogue Arksen** partagé par toutes les entreprises est géré par la plateforme ; chaque entreprise peut créer ses propres fiches.
+- **Statuts des équipements** : en service, en maintenance, hors service, retirée du parc. Chaque changement est tracé dans le journal d'audit. La **connectivité** (en ligne, hors ligne) est un champ distinct, « non mesurée » jusqu'à l'agent de collecte de la Phase 7.
+- **Configuration réseau** : adresse IP (v4 ou v6), nom d'hôte, adresse MAC, SNMP v1, v2c ou v3 (utilisateur, niveau de sécurité, protocoles d'authentification et de chiffrement). Les secrets SNMP sont **chiffrés en AES-256-GCM**, en écriture seule, et ne sont jamais renvoyés au navigateur ni écrits dans le journal.
+- **Permissions** : sept nouvelles permissions. Tous les rôles consultent le parc ; administrateurs et responsables d'impression le gèrent ; les techniciens gèrent les machines, leur statut et leur réseau.
+- **Plateforme** : le Super Administrateur choisit l'entreprise à consulter dans les pages du parc, et gère le catalogue Arksen.
+
+Décisions détaillées dans [docs/architecture.md](docs/architecture.md), section « Parc machines ».
+
+### Critères d'acceptation
+
+| Critère                                        | Résultat                                                   |
+| ---------------------------------------------- | ---------------------------------------------------------- |
+| Tableau de bord général                        | Validé, avec des données réelles uniquement                |
+| Gestion des clients et des sites               | Validé                                                     |
+| Ajout et modification des machines             | Validé                                                     |
+| Fiches techniques                              | Validé : catalogue Arksen et fiches propres à l'entreprise |
+| Statuts des équipements                        | Validé, tracés dans le journal d'audit                     |
+| Configuration réseau des imprimantes           | Validé, secrets SNMP chiffrés et jamais renvoyés           |
+| Isolation des données par entreprise           | Validé au niveau de l'API et de PostgreSQL                 |
+| `build`, `typecheck`, `lint` et `test` passent | Validé : 30 tâches sur 30, sans cache                      |
+
+Détail des tests :
+
+| Paquet                 | Tests | Dont nouveaux en Phase 3 |
+| ---------------------- | ----- | ------------------------ |
+| `@arksen/api`          | 40    | 12                       |
+| `@arksen/validation`   | 36    | 13                       |
+| `@arksen/web`          | 28    | 4                        |
+| `@arksen/shared-types` | 11    | 2                        |
+| `@arksen/database`     | 2     |                          |
+| `@arksen/workers`      | 2     |                          |
+| `@arksen/collector`    | 2     |                          |
+| `@arksen/analytics`    | 1     |                          |
+
+Soit 122 tests unitaires et d'intégration, et **41 tests de bout en bout** sur la stack Docker réelle (19 nouveaux, dans `apps/api/test/e2e/fleet.e2e.test.ts`), tous réussis. Ils vérifient notamment :
+
+- l'accès refusé aux sites, machines et tableau de bord d'une autre entreprise (404), et le refus d'utiliser son site ou sa fiche privée (400) ;
+- qu'une entreprise lit le catalogue Arksen sans pouvoir le modifier, ni par l'API ni directement en SQL ;
+- que la base refuse, même au rôle système, une machine rattachée au site ou à la fiche privée d'une autre entreprise ;
+- que la communauté SNMP est stockée chiffrée et n'apparaît dans aucune réponse ni dans le journal ;
+- qu'un simple utilisateur consulte le parc sans pouvoir le modifier ;
+- les comptages du tableau de bord et ses filtres.
+
+Vérification de la stack (`pnpm stack:smoke`) : 11 contrôles sur 11.
+
+Vérification visuelle : tableau de bord, machines, fiche d'une machine, dialogue de création, sites et fiches techniques, en clair, en sombre et sur mobile, sans erreur dans la console. Elle a été faite avec l'administrateur de l'entreprise de test `demo-interface`, sur des données de démonstration signalées comme telles (« (démo) », séries `DEMO-…`). Les écrans propres à la plateforme (choix de l'entreprise, gestion du catalogue Arksen) sont couverts par les tests de bout en bout, mais n'ont pas été vus à l'écran.
+
+### Écarts par rapport au plan
+
+- **Ordre des phases :** le plan suivi est le vôtre (Phase 3 : tableau de bord et parc). Le `Prompt.txt` répartissait ces sujets sur ses Phases 3 et 4.
+- **Fiches techniques en deux niveaux** (catalogue Arksen et fiches d'entreprise), pour ne pas ressaisir les mêmes modèles chez chaque client.
+- **Pas de suppression de machine :** une machine est « retirée du parc », pour garder l'historique des phases suivantes.
+- **Page d'arrivée :** après connexion, l'utilisateur arrive sur le tableau de bord, et non plus sur l'état de la plateforme.
+
+### Points restants
+
+- **Clé de chiffrement SNMP :** `CREDENTIALS_ENCRYPTION_KEY` doit être sauvegardée avec la base. Sa rotation (rechiffrement des secrets) est à outiller avant la mise en production.
+- **Catalogue Arksen vide :** aucune caractéristique de modèle réel n'a été inventée. Le catalogue est à remplir avec des fiches constructeur vérifiées.
+- **Connectivité et indicateurs de consommation :** à venir avec les Phases 4 à 9, comme annoncé sur le tableau de bord.
+- **Données de test :** l'entreprise `demo-interface` porte des données de démonstration (3 sites, 3 fiches, 8 machines) ; les tests de bout en bout laissent des entreprises `e2e-…`. Le catalogue partagé, lui, est nettoyé après chaque exécution.
+- **Points des phases précédentes toujours ouverts :** voir les sections Phase 1 et Phase 2.
+
 ## Phase 2 : Authentification et gestion des utilisateurs
 
 ### Livré
@@ -163,6 +232,15 @@ Vérification dans le navigateur : redirection vers `/login` avec retour à la p
 - **Points de la Phase 1 toujours ouverts :** ESLint 10, licences AGPL de la Phase 6, aucun commit.
 
 ## Journal des modifications
+
+### 4 novembre 2026 : Phase 3
+
+- **Base de données :** migration `20261104000000_fleet` : tables `sites`, `printer_models`, `printers` et `printer_connections`, politiques RLS (dont lecture du catalogue partagé), clés étrangères composites et déclencheur `printers_model_scope`.
+- **API :** modules `sites`, `printer-models` (catalogue de plateforme et fiches d'entreprise), `printers` (machines et configuration réseau) et `dashboard`. Chiffrement `common/secret-box.ts`. Nouvelle variable `CREDENTIALS_ENCRYPTION_KEY`.
+- **Contrats :** `packages/shared-types/src/fleet.ts` et `packages/validation/src/fleet.ts` ; sept permissions dans `access.ts`.
+- **Web :** fonctionnalité `features/fleet` (tableau de bord, sites, machines, fiche machine, fiches techniques, formulaire réseau, choix de l'entreprise pour la plateforme), composants `Textarea`, `ConfirmDialog` et `EmptyState`, recherche de l'en-tête active, matrice des rôles transposée.
+- **Tests :** `fleet.e2e.test.ts`, tests du chiffrement, des secrets SNMP, des schémas et du formulaire réseau.
+- **Documentation :** `README.md`, `docs/architecture.md`, `docs/configuration.md` et `docs/development.md`.
 
 ### 4 novembre 2026 : refonte visuelle de l'interface
 

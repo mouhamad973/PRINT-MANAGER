@@ -42,8 +42,12 @@ model Tenant {
   createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  users     User[]
-  auditLogs AuditLog[]
+  users              User[]
+  auditLogs          AuditLog[]
+  sites              Site[]
+  printers           Printer[]
+  printerModels      PrinterModel[]
+  printerConnections PrinterConnection[]
 
   @@map("tenants")
 }
@@ -153,4 +157,181 @@ model AuditLog {
   @@index([tenantId, createdAt(sort: Desc)])
   @@index([createdAt(sort: Desc)])
   @@map("audit_logs")
+}
+
+// =====================================================================
+// Phase 3 : sites, parc machines, fiches techniques, configuration réseau
+// =====================================================================
+
+/// Site d'une entreprise : agence, atelier, étage. Les machines y sont rattachées.
+model Site {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  name         String
+  code         String?
+  address      String?
+  postalCode   String?  @map("postal_code")
+  city         String?
+  country      String?
+  contactName  String?  @map("contact_name")
+  contactEmail String?  @map("contact_email")
+  contactPhone String?  @map("contact_phone")
+  notes        String?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  printers Printer[]
+
+  @@unique([tenantId, name])
+  /// Cible des clés étrangères composites : une machine ne peut pas pointer vers le site d'une autre entreprise.
+  @@unique([id, tenantId])
+  @@map("sites")
+}
+
+enum ColorMode {
+  COLOR
+  MONOCHROME
+}
+
+enum PrintTechnology {
+  LASER
+  LED
+  INKJET
+  OTHER
+}
+
+enum PaperFormat {
+  A4
+  A3
+  SRA3
+}
+
+/// Fiche technique d'un modèle d'imprimante.
+/// `tenantId` nul : catalogue Arksen, visible par toutes les entreprises et modifiable par la plateforme seule.
+/// `tenantId` renseigné : modèle propre à une entreprise.
+model PrinterModel {
+  id                String          @id @default(uuid(7)) @db.Uuid
+  tenantId          String?         @map("tenant_id") @db.Uuid
+  manufacturer      String
+  name              String
+  colorMode         ColorMode       @map("color_mode")
+  technology        PrintTechnology @default(LASER)
+  maxFormat         PaperFormat     @default(A4) @map("max_format")
+  speedMonoPpm      Int?            @map("speed_mono_ppm")
+  speedColorPpm     Int?            @map("speed_color_ppm")
+  duplex            Boolean         @default(true)
+  monthlyDutyCycle  Int?            @map("monthly_duty_cycle")
+  recommendedVolume Int?            @map("recommended_volume")
+  notes             String?
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant   Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  printers Printer[]
+
+  @@unique([tenantId, manufacturer, name])
+  @@index([manufacturer, name])
+  @@map("printer_models")
+}
+
+/// État d'exploitation, déclaré par les utilisateurs.
+enum PrinterStatus {
+  ACTIVE
+  MAINTENANCE
+  OUT_OF_SERVICE
+  RETIRED
+}
+
+/// Joignabilité réseau, mesurée par l'agent (Phase 7). `UNKNOWN` tant qu'aucune mesure n'existe.
+enum ConnectivityStatus {
+  UNKNOWN
+  ONLINE
+  OFFLINE
+}
+
+/// Machine du parc.
+model Printer {
+  id           String             @id @default(uuid(7)) @db.Uuid
+  tenantId     String             @map("tenant_id") @db.Uuid
+  siteId       String             @map("site_id") @db.Uuid
+  modelId      String             @map("model_id") @db.Uuid
+  name         String
+  serialNumber String             @map("serial_number")
+  assetTag     String?            @map("asset_tag")
+  location     String?
+  status       PrinterStatus      @default(ACTIVE)
+  connectivity ConnectivityStatus @default(UNKNOWN)
+  lastSeenAt   DateTime?          @map("last_seen_at") @db.Timestamptz(3)
+  installedAt  DateTime?          @map("installed_at") @db.Date
+  notes        String?
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant     Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  site       Site               @relation(fields: [siteId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  model      PrinterModel       @relation(fields: [modelId], references: [id], onDelete: Restrict)
+  connection PrinterConnection?
+
+  @@unique([tenantId, serialNumber])
+  @@unique([id, tenantId])
+  @@index([tenantId, siteId])
+  @@index([tenantId, status])
+  @@index([modelId])
+  @@map("printers")
+}
+
+enum SnmpVersion {
+  V1
+  V2C
+  V3
+}
+
+enum SnmpSecurityLevel {
+  NO_AUTH_NO_PRIV
+  AUTH_NO_PRIV
+  AUTH_PRIV
+}
+
+enum SnmpAuthProtocol {
+  MD5
+  SHA
+  SHA224
+  SHA256
+  SHA384
+  SHA512
+}
+
+enum SnmpPrivProtocol {
+  DES
+  AES128
+  AES192
+  AES256
+}
+
+/// Configuration réseau et SNMP d'une machine, utilisée par l'agent de collecte (Phase 7).
+/// La communauté et les mots de passe SNMPv3 sont chiffrés (AES-256-GCM) et ne sont jamais renvoyés au navigateur.
+model PrinterConnection {
+  printerId         String             @id @map("printer_id") @db.Uuid
+  tenantId          String             @map("tenant_id") @db.Uuid
+  ipAddress         String?            @map("ip_address")
+  hostname          String?
+  macAddress        String?            @map("mac_address")
+  snmpVersion       SnmpVersion        @default(V2C) @map("snmp_version")
+  snmpPort          Int                @default(161) @map("snmp_port")
+  snmpCommunity     String?            @map("snmp_community")
+  snmpUsername      String?            @map("snmp_username")
+  snmpSecurityLevel SnmpSecurityLevel? @map("snmp_security_level")
+  snmpAuthProtocol  SnmpAuthProtocol?  @map("snmp_auth_protocol")
+  snmpAuthPassword  String?            @map("snmp_auth_password")
+  snmpPrivProtocol  SnmpPrivProtocol?  @map("snmp_priv_protocol")
+  snmpPrivPassword  String?            @map("snmp_priv_password")
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  printer Printer @relation(fields: [printerId, tenantId], references: [id, tenantId], onDelete: Cascade)
+
+  @@unique([printerId, tenantId])
+  @@index([tenantId])
+  @@map("printer_connections")
 }

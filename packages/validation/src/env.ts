@@ -24,6 +24,10 @@ export const apiEnvSchema = z
     /** Adresse publique du frontend, seule origine autorisée par l'authentification. */
     PUBLIC_WEB_URL: z.url(),
     BETTER_AUTH_SECRET: z.string().min(32, 'au moins 32 caractères'),
+    /** Clé AES-256 des secrets SNMP, 64 caractères hexadécimaux. La perdre rend ces secrets illisibles. */
+    CREDENTIALS_ENCRYPTION_KEY: z
+      .string()
+      .regex(/^[0-9a-f]{64}$/i, '64 caractères hexadécimaux (32 octets)'),
     /** Création du premier Super Administrateur, uniquement si aucun n'existe. */
     SUPER_ADMIN_EMAIL: optional(z.email()),
     SUPER_ADMIN_PASSWORD: optional(z.string().min(12, 'au moins 12 caractères')),

@@ -1,6 +1,13 @@
 'use client';
 
-import { ROLE_LABELS, ROLE_PERMISSIONS, TENANT_ROLES, type Permission } from '@arksen/shared-types';
+import {
+  PERMISSION_LABELS,
+  PERMISSIONS,
+  ROLE_LABELS,
+  ROLE_PERMISSIONS,
+  TENANT_ROLES,
+  type Permission,
+} from '@arksen/shared-types';
 import { Check } from 'lucide-react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/layout/page-header';
@@ -17,12 +24,9 @@ import { useSession } from '@/features/session/session-provider';
 import { UsersPanel } from './users-panel';
 
 /** Droits d'entreprise affichés dans la matrice. Les droits de plateforme n'y figurent pas. */
-const TENANT_PERMISSIONS: { permission: Permission; label: string }[] = [
-  { permission: 'tenant:read', label: 'Consulter l’entreprise' },
-  { permission: 'users:read', label: 'Voir les utilisateurs' },
-  { permission: 'users:manage', label: 'Gérer les utilisateurs' },
-  { permission: 'audit:read', label: 'Consulter le journal d’audit' },
-];
+const TENANT_PERMISSIONS = PERMISSIONS.filter(
+  (permission): permission is Permission => !permission.startsWith('platform:'),
+).map((permission) => ({ permission, label: PERMISSION_LABELS[permission] ?? permission }));
 
 function RolesMatrix() {
   return (
@@ -40,29 +44,30 @@ function RolesMatrix() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Rôle</TableHead>
-              {TENANT_PERMISSIONS.map(({ permission, label }) => (
-                <TableHead key={permission} className="text-center">
-                  {label}
+              <TableHead>Droit</TableHead>
+              {TENANT_ROLES.map((role) => (
+                <TableHead key={role} className="text-center">
+                  {ROLE_LABELS[role]}
                 </TableHead>
               ))}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {TENANT_ROLES.map((role) => (
-              <TableRow key={role}>
-                <TableCell className="font-medium whitespace-nowrap">{ROLE_LABELS[role]}</TableCell>
-                {TENANT_PERMISSIONS.map(({ permission, label }) => {
+            {TENANT_PERMISSIONS.map(({ permission, label }) => (
+              <TableRow key={permission}>
+                <TableCell className="font-medium">{label}</TableCell>
+                {TENANT_ROLES.map((role) => {
                   const granted = ROLE_PERMISSIONS[role].includes(permission);
+                  const text = `${ROLE_LABELS[role]}, ${label}`;
                   return (
-                    <TableCell key={permission} className="text-center">
+                    <TableCell key={role} className="text-center">
                       {granted ? (
                         <Check
                           className="mx-auto size-4 text-success"
-                          aria-label={`${label} : oui`}
+                          aria-label={`${text} : oui`}
                         />
                       ) : (
-                        <span className="text-muted-foreground" aria-label={`${label} : non`}>
+                        <span className="text-muted-foreground" aria-label={`${text} : non`}>
                           —
                         </span>
                       )}

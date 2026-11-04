@@ -34,12 +34,13 @@ Les rôles `arksen_app` et `arksen_system` sont créés et mis à jour par le se
 
 ### Authentification
 
-| Variable               | Exemple  | Rôle                                                                               |
-| ---------------------- | -------- | ---------------------------------------------------------------------------------- |
-| `BETTER_AUTH_SECRET`   | (secret) | Signature des sessions, 32 caractères minimum. Le changer déconnecte tout le monde |
-| `SUPER_ADMIN_EMAIL`    | (vide)   | Premier Super Administrateur, créé au démarrage si aucun n'existe                  |
-| `SUPER_ADMIN_PASSWORD` | (vide)   | Son mot de passe, 12 caractères minimum                                            |
-| `SUPER_ADMIN_NAME`     | (vide)   | Son nom, « Administrateur Arksen » par défaut                                      |
+| Variable                     | Exemple  | Rôle                                                                                                                          |
+| ---------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `BETTER_AUTH_SECRET`         | (secret) | Signature des sessions, 32 caractères minimum. Le changer déconnecte tout le monde                                            |
+| `CREDENTIALS_ENCRYPTION_KEY` | (secret) | Clé AES-256 des secrets SNMP, 64 caractères hexadécimaux. À sauvegarder avec la base : sans elle, les secrets sont illisibles |
+| `SUPER_ADMIN_EMAIL`          | (vide)   | Premier Super Administrateur, créé au démarrage si aucun n'existe                                                             |
+| `SUPER_ADMIN_PASSWORD`       | (vide)   | Son mot de passe, 12 caractères minimum                                                                                       |
+| `SUPER_ADMIN_NAME`           | (vide)   | Son nom, « Administrateur Arksen » par défaut                                                                                 |
 
 Les trois variables `SUPER_ADMIN_*` ne servent qu'à la première installation. Elles sont ignorées dès qu'un Super Administrateur existe, et peuvent alors être retirées.
 
@@ -63,21 +64,22 @@ Tous les ports sont publiés sur `127.0.0.1` uniquement. L'exposition réseau, N
 
 Dans Docker, le fichier Compose construit ces variables. Hors Docker, elles viennent de `.env`.
 
-| Service   | Variable              | Obligatoire | Rôle                                          |
-| --------- | --------------------- | ----------- | --------------------------------------------- |
-| API       | `DEPLOYMENT_MODE`     | Oui         | Mode de déploiement                           |
-| API       | `DATABASE_APP_URL`    | Oui         | Connexion du rôle `arksen_app`                |
-| API       | `DATABASE_SYSTEM_URL` | Oui         | Connexion du rôle `arksen_system`             |
-| API       | `REDIS_URL`           | Oui         | Connexion Redis                               |
-| API       | `ANALYTICS_URL`       | Oui         | Adresse du service d'analyse                  |
-| API       | `PUBLIC_WEB_URL`      | Oui         | Origine autorisée pour l'authentification     |
-| API       | `BETTER_AUTH_SECRET`  | Oui         | Secret des sessions                           |
-| API       | `SUPER_ADMIN_*`       | Non         | Premier Super Administrateur                  |
-| API       | `API_PORT`            | Non         | Port d'écoute, 4000 par défaut                |
-| Workers   | `REDIS_URL`           | Oui         | Connexion Redis                               |
-| Web       | `API_INTERNAL_URL`    | Non         | Adresse de l'API, lue à l'exécution           |
-| Migration | `DATABASE_URL`        | Oui         | Connexion du propriétaire de la base          |
-| Migration | `APP_DB_PASSWORD`     | Oui         | Mot de passe appliqué au rôle `arksen_app`    |
-| Migration | `SYSTEM_DB_PASSWORD`  | Oui         | Mot de passe appliqué au rôle `arksen_system` |
+| Service   | Variable                     | Obligatoire | Rôle                                          |
+| --------- | ---------------------------- | ----------- | --------------------------------------------- |
+| API       | `DEPLOYMENT_MODE`            | Oui         | Mode de déploiement                           |
+| API       | `DATABASE_APP_URL`           | Oui         | Connexion du rôle `arksen_app`                |
+| API       | `DATABASE_SYSTEM_URL`        | Oui         | Connexion du rôle `arksen_system`             |
+| API       | `REDIS_URL`                  | Oui         | Connexion Redis                               |
+| API       | `ANALYTICS_URL`              | Oui         | Adresse du service d'analyse                  |
+| API       | `PUBLIC_WEB_URL`             | Oui         | Origine autorisée pour l'authentification     |
+| API       | `BETTER_AUTH_SECRET`         | Oui         | Secret des sessions                           |
+| API       | `CREDENTIALS_ENCRYPTION_KEY` | Oui         | Chiffrement des secrets SNMP                  |
+| API       | `SUPER_ADMIN_*`              | Non         | Premier Super Administrateur                  |
+| API       | `API_PORT`                   | Non         | Port d'écoute, 4000 par défaut                |
+| Workers   | `REDIS_URL`                  | Oui         | Connexion Redis                               |
+| Web       | `API_INTERNAL_URL`           | Non         | Adresse de l'API, lue à l'exécution           |
+| Migration | `DATABASE_URL`               | Oui         | Connexion du propriétaire de la base          |
+| Migration | `APP_DB_PASSWORD`            | Oui         | Mot de passe appliqué au rôle `arksen_app`    |
+| Migration | `SYSTEM_DB_PASSWORD`         | Oui         | Mot de passe appliqué au rôle `arksen_system` |
 
 L'API et les workers refusent de démarrer si une variable obligatoire manque ou est invalide.

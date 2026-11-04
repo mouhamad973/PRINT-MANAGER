@@ -20,6 +20,7 @@ describe('application', () => {
     vi.stubEnv('ANALYTICS_URL', 'http://127.0.0.1:1');
     vi.stubEnv('PUBLIC_WEB_URL', 'http://localhost:3000');
     vi.stubEnv('BETTER_AUTH_SECRET', 'secret-de-test-'.repeat(4));
+    vi.stubEnv('CREDENTIALS_ENCRYPTION_KEY', 'cd'.repeat(32));
 
     // Aucune requête ne doit atteindre la base dans ces tests : le client est vide.
     const prisma: Record<string, unknown> = { $disconnect: vi.fn() };

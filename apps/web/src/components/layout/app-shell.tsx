@@ -2,8 +2,10 @@
 
 import * as Dialog from '@radix-ui/react-dialog';
 import { Bell, Menu, Search, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 import { IconButton } from '@/components/ui/button';
+import { useSession } from '@/features/session/session-provider';
 import { AppSidebar } from './app-sidebar';
 import { ThemeToggle } from './theme-toggle';
 import { UserMenu } from './user-menu';
@@ -37,26 +39,48 @@ function MobileNavigation() {
   );
 }
 
+/** Recherche dans le parc : ouvre la liste des machines filtrée, en gardant l'entreprise choisie. */
+function HeaderSearch() {
+  const { can } = useSession();
+  const router = useRouter();
+  const enabled = can('printers:read');
+
+  return (
+    <form
+      role="search"
+      className="relative max-w-md min-w-0 flex-1"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const value = new FormData(event.currentTarget).get('q')?.toString().trim();
+        if (!value) return;
+        const params = new URLSearchParams({ search: value });
+        const tenant = new URLSearchParams(window.location.search).get('tenant');
+        if (tenant) params.set('tenant', tenant);
+        router.push(`/machines?${params.toString()}`);
+      }}
+    >
+      <Search
+        className="pointer-events-none absolute top-1/2 left-4 size-[18px] -translate-y-1/2 text-muted-foreground"
+        aria-hidden="true"
+      />
+      <input
+        type="search"
+        name="q"
+        disabled={!enabled}
+        aria-label="Rechercher une machine"
+        placeholder="Machine, numéro de série, adresse IP…"
+        className="h-11 w-full rounded-full border border-transparent bg-surface-raised pr-4 pl-11 text-sm text-foreground transition-[border-color,box-shadow] placeholder:text-muted-foreground focus-visible:border-primary focus-visible:shadow-[0_0_0_3px_color-mix(in_oklch,var(--primary)_18%,transparent)] focus-visible:outline-none disabled:cursor-not-allowed"
+      />
+    </form>
+  );
+}
+
 function AppHeader() {
   return (
     <header className="sticky top-0 z-30 -mx-3 bg-background/85 px-3 pt-3 pb-3 backdrop-blur-md lg:top-0">
       <div className="flex h-16 items-center gap-2 rounded-2xl border border-border/70 bg-surface px-3 shadow-panel sm:gap-3 sm:px-4">
         <MobileNavigation />
-        {/* La recherche et les notifications s'activent avec les modules métier : elles restent désactivées d'ici là. */}
-        <div className="relative max-w-md min-w-0 flex-1">
-          <Search
-            className="pointer-events-none absolute top-1/2 left-4 size-[18px] -translate-y-1/2 text-muted-foreground"
-            aria-hidden="true"
-          />
-          <input
-            type="search"
-            disabled
-            aria-label="Recherche"
-            title="La recherche s’active avec le parc machines (phase 3)"
-            placeholder="Rechercher une machine, un site…"
-            className="h-11 w-full rounded-full border border-transparent bg-surface-raised pr-4 pl-11 text-sm text-foreground placeholder:text-muted-foreground disabled:cursor-not-allowed"
-          />
-        </div>
+        <HeaderSearch />
         <div className="ml-auto flex items-center gap-2">
           <ThemeToggle />
           <IconButton

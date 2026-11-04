@@ -68,3 +68,8 @@ export function queryString(params: Record<string, string | number | undefined>)
   const result = search.toString();
   return result ? `?${result}` : '';
 }
+
+/** Message à montrer pour une erreur d'appel : celui de l'API, sinon un texte générique. */
+export function errorMessage(error: unknown, fallback = 'Enregistrement impossible.'): string {
+  return error instanceof ApiError ? error.message : fallback;
+}

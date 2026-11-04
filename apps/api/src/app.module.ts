@@ -2,10 +2,14 @@ import { Module } from '@nestjs/common';
 import { AuditModule } from './audit/audit.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { ConfigModule } from './config/config.module.js';
+import { DashboardModule } from './dashboard/dashboard.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './health/health.module.js';
 import { MeModule } from './me/me.module.js';
+import { PrinterModelsModule } from './printer-models/printer-models.module.js';
+import { PrintersModule } from './printers/printers.module.js';
 import { RedisModule } from './redis/redis.module.js';
+import { SitesModule } from './sites/sites.module.js';
 import { SystemModule } from './system/system.module.js';
 import { TenantsModule } from './tenants/tenants.module.js';
 import { UsersModule } from './users/users.module.js';
@@ -22,6 +26,10 @@ import { UsersModule } from './users/users.module.js';
     MeModule,
     TenantsModule,
     UsersModule,
+    SitesModule,
+    PrinterModelsModule,
+    PrintersModule,
+    DashboardModule,
   ],
 })
 export class AppModule {}

@@ -22,14 +22,14 @@ export const emailSchema = z
   .toLowerCase()
   .pipe(z.email('Saisissez une adresse e-mail valide.'));
 
-const nameSchema = z
+export const nameSchema = z
   .string()
   .trim()
   .min(2, 'Saisissez au moins 2 caractères.')
   .max(120, '120 caractères maximum.');
 
 /** Champ facultatif : une saisie vide devient `null`. */
-const optionalText = (max: number) =>
+export const optionalText = (max: number) =>
   z
     .string()
     .trim()

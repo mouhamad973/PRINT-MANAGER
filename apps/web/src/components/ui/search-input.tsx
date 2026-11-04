@@ -7,12 +7,14 @@ import { Input } from './input';
 interface SearchInputProps {
   label: string;
   placeholder?: string;
+  /** Recherche initiale, par exemple reçue dans l'URL. */
+  defaultValue?: string;
   onSearch: (value: string) => void;
 }
 
 /** Recherche déclenchée 300 ms après la dernière frappe : une requête par intention, pas par touche. */
-export function SearchInput({ label, placeholder, onSearch }: SearchInputProps) {
-  const [value, setValue] = useState('');
+export function SearchInput({ label, placeholder, defaultValue = '', onSearch }: SearchInputProps) {
+  const [value, setValue] = useState(defaultValue);
 
   useEffect(() => {
     const timer = setTimeout(() => onSearch(value.trim()), 300);

@@ -24,8 +24,8 @@ describe('NAVIGATION', () => {
     }
   });
 
-  it('couvre les 20 modules du cahier des charges et les 3 pages du socle', () => {
-    expect(items).toHaveLength(23);
+  it('couvre les 20 modules du cahier des charges, les 3 pages du socle et les fiches techniques', () => {
+    expect(items).toHaveLength(24);
     expect(new Set(items.map((item) => item.label)).size).toBe(items.length);
   });
 });
@@ -48,6 +48,15 @@ describe('navigationFor', () => {
   });
 
   it('garde visibles les modules à venir, marqués de leur phase', () => {
-    expect(labels(current('USER'))).toContain('Machines');
+    expect(labels(current('USER'))).toContain('Compteurs');
+  });
+
+  it('ouvre le parc à tous les rôles d’entreprise et à la plateforme', () => {
+    for (const role of ['CLIENT_ADMIN', 'TECHNICIAN', 'USER'] as const) {
+      expect(labels(current(role))).toEqual(
+        expect.arrayContaining(['Tableau de bord', 'Sites', 'Machines', 'Fiches techniques']),
+      );
+    }
+    expect(labels(current('SUPER_ADMIN', false))).toContain('Machines');
   });
 });

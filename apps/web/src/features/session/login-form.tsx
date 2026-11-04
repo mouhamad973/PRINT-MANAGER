@@ -47,7 +47,9 @@ export function LoginForm() {
     try {
       await authFetch('/sign-in/email', { ...values, rememberMe: false });
       queryClient.clear();
-      router.replace(safeRedirect(searchParams.get('next')));
+      // Sans destination demandée, l'utilisateur arrive sur le tableau de bord du parc.
+      const next = searchParams.get('next');
+      router.replace(next ? safeRedirect(next) : '/dashboard');
     } catch (error) {
       setFormError(signInMessage(error));
     }

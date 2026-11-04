@@ -95,6 +95,13 @@ La matrice des rôles est définie dans le code (`packages/shared-types/src/acce
 | `users:read`              |     Oui     |     Oui      |       Oui        |            |             |             |
 | `users:manage`            |     Oui     |     Oui      |                  |            |             |             |
 | `audit:read`              |     Oui     |     Oui      |                  |            |             |             |
+| `platform:catalog:manage` |     Oui     |              |                  |            |             |             |
+| `sites:read`              |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |     Oui     |
+| `sites:manage`            |     Oui     |     Oui      |       Oui        |            |             |             |
+| `printers:read`           |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |     Oui     |
+| `printers:manage`         |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
+| `printers:network:manage` |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
+| `printer-models:manage`   |     Oui     |     Oui      |       Oui        |            |             |             |
 
 Un administrateur client ne peut ni attribuer le rôle Super Administrateur, ni modifier son propre rôle ou statut.
 
@@ -127,6 +134,31 @@ La politique de conservation, et donc la purge des événements anciens, est à 
 Better Auth limite les tentatives par adresse IP, lue dans `X-Forwarded-For`. Seuls les proxys des réseaux privés et de la boucle locale sont crus, et la chaîne est lue de droite à gauche jusqu'au premier saut non fiable.
 
 En développement, sans proxy frontal, un poste du réseau local peut fixer son propre `X-Forwarded-For`. En production, le proxy frontal (Nginx, Phase 10) doit écraser cet en-tête avec l'adresse réelle du client.
+
+## Parc machines
+
+| Table                 | Contenu                                       | Isolation                                                                               |
+| --------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `sites`               | Implantations d'une entreprise                | RLS `tenant_isolation`                                                                  |
+| `printer_models`      | Fiches techniques                             | Lecture : catalogue Arksen et fiches de l'entreprise ; écriture : les siennes seulement |
+| `printers`            | Machines, statut d'exploitation, connectivité | RLS, plus clé composite vers le site et déclencheur sur le modèle                       |
+| `printer_connections` | Adresse réseau et accès SNMP                  | RLS, plus clé composite vers la machine                                                 |
+
+**Catalogue Arksen.** Une fiche sans `tenant_id` appartient au catalogue partagé : toutes les entreprises la lisent, seule la plateforme la modifie (permission `platform:catalog:manage`, rôle `arksen_system`). Une entreprise crée ses propres fiches pour les modèles absents du catalogue.
+
+**Intégrité entre entreprises, dans la base elle-même.** Une machine référence son site par la paire `(site_id, tenant_id)` : la base refuse qu'elle pointe vers le site d'une autre entreprise, même pour le rôle système. Un déclencheur refuse de même un modèle privé d'une autre entreprise. Les tests de bout en bout le vérifient directement en SQL.
+
+**Statut et connectivité sont distincts.** Le statut (en service, en maintenance, hors service, retirée) est déclaré par les utilisateurs. La connectivité (en ligne, hors ligne) sera mesurée par l'agent de collecte en Phase 7 : d'ici là, elle vaut « non mesurée » et n'est jamais déduite ni simulée.
+
+**Machines retirées.** Elles ne sont jamais supprimées, pour garder leur historique (compteurs, consommations des phases suivantes). Elles sortent du parc actif et des indicateurs, mais restent consultables par le filtre de statut. Un site ou une fiche encore utilisé ne peut pas être supprimé.
+
+### Secrets SNMP
+
+La communauté SNMPv1/v2c et les mots de passe SNMPv3 sont chiffrés en AES-256-GCM avant d'être écrits, avec la clé `CREDENTIALS_ENCRYPTION_KEY`. Chaque valeur est liée à sa machine et à son champ par les données authentifiées : recopiée ailleurs, elle devient indéchiffrable.
+
+Ils sont en écriture seule. L'API n'en renvoie que la présence (`hasCommunity`, `hasAuthPassword`, `hasPrivPassword`). Un secret absent de la requête est conservé, `null` l'efface, une valeur le remplace. Le journal d'audit indique quels secrets ont changé, jamais leur valeur.
+
+La clé doit être sauvegardée avec la base : sans elle, les secrets sont perdus et doivent être ressaisis. Sa rotation, qui demande de rechiffrer les secrets, est à outiller avant la mise en production.
 
 ## Origine des données
 

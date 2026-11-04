@@ -18,18 +18,53 @@ export const PERMISSIONS = [
   'users:manage',
   /** Consulter le journal d'audit de l'entreprise. */
   'audit:read',
+  /** Gérer le catalogue Arksen des fiches techniques, partagé par toutes les entreprises. */
+  'platform:catalog:manage',
+  /** Consulter les sites de l'entreprise. */
+  'sites:read',
+  /** Créer, modifier et supprimer les sites. */
+  'sites:manage',
+  /** Consulter le parc machines, les fiches techniques et le tableau de bord. */
+  'printers:read',
+  /** Ajouter et modifier les machines, et changer leur statut. */
+  'printers:manage',
+  /** Modifier la configuration réseau et les secrets SNMP des machines. */
+  'printers:network:manage',
+  /** Créer et modifier les fiches techniques propres à l'entreprise. */
+  'printer-models:manage',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
-const TENANT_BASE: readonly Permission[] = ['tenant:read'];
+const TENANT_BASE: readonly Permission[] = ['tenant:read', 'sites:read', 'printers:read'];
+
+const FLEET_MANAGEMENT: readonly Permission[] = [
+  'sites:manage',
+  'printers:manage',
+  'printers:network:manage',
+  'printer-models:manage',
+];
 
 export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
   SUPER_ADMIN: PERMISSIONS,
-  CLIENT_ADMIN: [...TENANT_BASE, 'users:read', 'users:manage', 'audit:read'],
-  PRINT_MANAGER: [...TENANT_BASE, 'users:read'],
-  TECHNICIAN: TENANT_BASE,
+  CLIENT_ADMIN: [...TENANT_BASE, 'users:read', 'users:manage', 'audit:read', ...FLEET_MANAGEMENT],
+  PRINT_MANAGER: [...TENANT_BASE, 'users:read', ...FLEET_MANAGEMENT],
+  TECHNICIAN: [...TENANT_BASE, 'printers:manage', 'printers:network:manage'],
   STOCK_MANAGER: TENANT_BASE,
   USER: TENANT_BASE,
+};
+
+/** Libellés des permissions d'entreprise, pour la matrice des rôles. */
+export const PERMISSION_LABELS: Partial<Record<Permission, string>> = {
+  'tenant:read': 'Consulter l’entreprise',
+  'sites:read': 'Consulter les sites',
+  'sites:manage': 'Gérer les sites',
+  'printers:read': 'Consulter le parc et le tableau de bord',
+  'printers:manage': 'Gérer les machines et leur statut',
+  'printers:network:manage': 'Configurer le réseau et SNMP',
+  'printer-models:manage': 'Gérer les fiches techniques',
+  'users:read': 'Voir les utilisateurs',
+  'users:manage': 'Gérer les utilisateurs',
+  'audit:read': 'Consulter le journal d’audit',
 };
 
 export const ROLE_LABELS: Record<UserRole, string> = {

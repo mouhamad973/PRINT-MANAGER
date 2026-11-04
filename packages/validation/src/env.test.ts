@@ -9,6 +9,7 @@ const validApiEnv = {
   ANALYTICS_URL: 'http://localhost:8000',
   PUBLIC_WEB_URL: 'http://localhost:3000',
   BETTER_AUTH_SECRET: 'x'.repeat(32),
+  CREDENTIALS_ENCRYPTION_KEY: 'ab'.repeat(32),
 };
 
 describe('parseEnv', () => {

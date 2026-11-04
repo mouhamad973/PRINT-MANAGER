@@ -37,6 +37,17 @@ export const ACTION_LABELS: Record<string, string> = {
   'user.updated': 'Utilisateur modifié',
   'user.password_reset': 'Mot de passe réinitialisé',
   'platform.super_admin_bootstrapped': 'Premier Super Administrateur créé',
+  'site.created': 'Site créé',
+  'site.updated': 'Site modifié',
+  'site.deleted': 'Site supprimé',
+  'printer_model.created': 'Fiche technique créée',
+  'printer_model.updated': 'Fiche technique modifiée',
+  'printer_model.deleted': 'Fiche technique supprimée',
+  'printer.created': 'Machine ajoutée',
+  'printer.updated': 'Machine modifiée',
+  'printer.status_changed': 'Statut de machine modifié',
+  'printer.network_updated': 'Configuration réseau modifiée',
+  'printer.network_cleared': 'Configuration réseau supprimée',
 };
 
 function describeTarget(entry: AuditLogEntry): string {
