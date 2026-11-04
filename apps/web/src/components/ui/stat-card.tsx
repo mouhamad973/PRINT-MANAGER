@@ -14,11 +14,22 @@ interface StatCardProps {
   featured?: boolean;
   /** Page de détail. Sans lien, la flèche n'est pas affichée. */
   href?: string;
+  /** Corps réduit, pour une valeur longue comme un montant. */
+  compact?: boolean;
   className?: string;
 }
 
 /** Indicateur clé : libellé, grande valeur, contexte. */
-export function StatCard({ label, value, unit, hint, featured, href, className }: StatCardProps) {
+export function StatCard({
+  label,
+  value,
+  unit,
+  hint,
+  featured,
+  href,
+  compact,
+  className,
+}: StatCardProps) {
   return (
     <article
       className={cn(
@@ -53,7 +64,8 @@ export function StatCard({ label, value, unit, hint, featured, href, className }
       </div>
       <p
         className={cn(
-          'mt-auto pt-6 text-[2.5rem] leading-none font-semibold tracking-[-0.035em] tabular-nums',
+          'mt-auto pt-6 leading-none font-semibold tracking-[-0.035em] tabular-nums',
+          compact ? 'text-[1.75rem]' : 'text-[2.5rem]',
           featured ? 'text-hero-foreground' : 'text-foreground',
         )}
       >

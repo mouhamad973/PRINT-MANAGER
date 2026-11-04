@@ -39,6 +39,8 @@ model Tenant {
   address      String?
   city         String?
   country      String?
+  /// Devise des prix et des coûts de l'entreprise (ISO 4217).
+  currency     String       @default("XOF")
   createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -49,6 +51,10 @@ model Tenant {
   printerModels      PrinterModel[]
   printerConnections PrinterConnection[]
   meterReadings      MeterReading[]
+  tonerModels        TonerModel[]
+  tonerPrices        TonerPrice[]
+  calibrations       CalibrationProfile[]
+  measurements       ConsumptionMeasurement[]
 
   @@map("tenants")
 }
@@ -228,8 +234,9 @@ model PrinterModel {
   createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  tenant   Tenant?   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  tenant   Tenant?      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   printers Printer[]
+  toners   TonerModel[]
 
   @@unique([tenantId, manufacturer, name])
   @@index([manufacturer, name])
@@ -269,11 +276,13 @@ model Printer {
   createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  tenant        Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  site          Site               @relation(fields: [siteId, tenantId], references: [id, tenantId], onDelete: Restrict)
-  model         PrinterModel       @relation(fields: [modelId], references: [id], onDelete: Restrict)
+  tenant        Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  site          Site                     @relation(fields: [siteId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  model         PrinterModel             @relation(fields: [modelId], references: [id], onDelete: Restrict)
   connection    PrinterConnection?
   meterReadings MeterReading[]
+  calibration   CalibrationProfile?
+  measurements  ConsumptionMeasurement[]
 
   @@unique([tenantId, serialNumber])
   @@unique([id, tenantId])
@@ -377,4 +386,109 @@ model MeterReading {
   @@unique([tenantId, externalId])
   @@index([tenantId, readAt])
   @@map("meter_readings")
+}
+
+// =====================================================================
+// Phase 5 : moteur de consommation CMJN
+// =====================================================================
+
+enum TonerChannel {
+  CYAN
+  MAGENTA
+  YELLOW
+  BLACK
+}
+
+/// Toner d'un canal d'un modèle d'imprimante : ses caractéristiques constructeur.
+/// Il suit la fiche technique : catalogue Arksen (`tenantId` nul) ou propre à une entreprise.
+model TonerModel {
+  id                String       @id @default(uuid(7)) @db.Uuid
+  tenantId          String?      @map("tenant_id") @db.Uuid
+  printerModelId    String       @map("printer_model_id") @db.Uuid
+  channel           TonerChannel
+  /// Référence de la cartouche chez le constructeur.
+  reference         String
+  capacityGrams     Decimal      @map("capacity_grams") @db.Decimal(10, 2)
+  yieldPages        Int          @map("yield_pages")
+  /// Couverture à laquelle le rendement est mesuré, en pourcentage (5 % selon ISO/IEC 19752 et 19798).
+  referenceCoverage Decimal      @default(5) @map("reference_coverage") @db.Decimal(5, 2)
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant       Tenant?      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  printerModel PrinterModel @relation(fields: [printerModelId], references: [id], onDelete: Cascade)
+  prices       TonerPrice[]
+
+  @@unique([printerModelId, channel])
+  @@map("toner_models")
+}
+
+/// Prix d'achat d'une cartouche pour une entreprise, dans sa devise.
+model TonerPrice {
+  tenantId     String   @map("tenant_id") @db.Uuid
+  tonerModelId String   @map("toner_model_id") @db.Uuid
+  unitPrice    Decimal  @map("unit_price") @db.Decimal(14, 2)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  tonerModel TonerModel @relation(fields: [tonerModelId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, tonerModelId])
+  @@map("toner_prices")
+}
+
+/// Paramètres de calcul d'une machine. Les couvertures sont l'aplat moyen supposé de ses impressions,
+/// en attendant l'analyse des fichiers (Phase 6) ; les coefficients manuels remplacent la calibration automatique.
+model CalibrationProfile {
+  printerId          String      @id @map("printer_id") @db.Uuid
+  tenantId           String      @map("tenant_id") @db.Uuid
+  coverageCyan       Decimal     @default(5) @map("coverage_cyan") @db.Decimal(5, 2)
+  coverageMagenta    Decimal     @default(5) @map("coverage_magenta") @db.Decimal(5, 2)
+  coverageYellow     Decimal     @default(5) @map("coverage_yellow") @db.Decimal(5, 2)
+  coverageBlack      Decimal     @default(5) @map("coverage_black") @db.Decimal(5, 2)
+  paperFormat        PaperFormat @default(A4) @map("paper_format")
+  mediaFactor        Decimal     @default(1) @map("media_factor") @db.Decimal(5, 3)
+  coefficientCyan    Decimal?    @map("coefficient_cyan") @db.Decimal(6, 3)
+  coefficientMagenta Decimal?    @map("coefficient_magenta") @db.Decimal(6, 3)
+  coefficientYellow  Decimal?    @map("coefficient_yellow") @db.Decimal(6, 3)
+  coefficientBlack   Decimal?    @map("coefficient_black") @db.Decimal(6, 3)
+  updatedAt          DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  printer Printer @relation(fields: [printerId, tenantId], references: [id, tenantId], onDelete: Cascade)
+
+  @@unique([printerId, tenantId])
+  @@index([tenantId])
+  @@map("calibration_profiles")
+}
+
+/// Méthode d'une consommation réelle : pesée des cartouches (mesurée), ou nombre de cartouches
+/// vidées multiplié par leur capacité (estimée).
+enum MeasurementMethod {
+  WEIGHING
+  CARTRIDGES
+}
+
+/// Consommation réelle d'un canal sur une période, comparée au théorique et utilisée pour la calibration.
+model ConsumptionMeasurement {
+  id             String            @id @default(uuid(7)) @db.Uuid
+  tenantId       String            @map("tenant_id") @db.Uuid
+  printerId      String            @map("printer_id") @db.Uuid
+  channel        TonerChannel
+  periodStart    DateTime          @map("period_start") @db.Timestamptz(3)
+  periodEnd      DateTime          @map("period_end") @db.Timestamptz(3)
+  method         MeasurementMethod
+  grams          Decimal           @db.Decimal(10, 2)
+  /// Nombre de cartouches vidées, pour la méthode CARTRIDGES.
+  cartridges     Decimal?          @db.Decimal(6, 2)
+  notes          String?
+  createdById    String?           @map("created_by_id")
+  createdByEmail String?           @map("created_by_email")
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  printer Printer @relation(fields: [printerId, tenantId], references: [id, tenantId], onDelete: Restrict)
+
+  @@index([tenantId, printerId, channel])
+  @@map("consumption_measurements")
 }

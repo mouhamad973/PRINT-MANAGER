@@ -51,6 +51,12 @@ export const ACTION_LABELS: Record<string, string> = {
   'meter.reading_created': 'Relevé de compteurs saisi',
   'meter.reading_deleted': 'Relevé de compteurs supprimé',
   'meter.readings_imported': 'Relevés de compteurs importés',
+  'toner.saved': 'Toner renseigné',
+  'toner.deleted': 'Toner retiré',
+  'toner.price_set': 'Prix de toner modifié',
+  'consumption.calibration_updated': 'Paramètres de calcul modifiés',
+  'consumption.measurement_created': 'Consommation réelle saisie',
+  'consumption.measurement_deleted': 'Consommation réelle supprimée',
 };
 
 function describeTarget(entry: AuditLogEntry): string {

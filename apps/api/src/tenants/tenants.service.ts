@@ -17,6 +17,7 @@ const tenantSelect = {
   address: true,
   city: true,
   country: true,
+  currency: true,
   createdAt: true,
   updatedAt: true,
   _count: { select: { users: true } },

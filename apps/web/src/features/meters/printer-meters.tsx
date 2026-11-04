@@ -27,7 +27,7 @@ import { AnomalyBadge, ChartLegend, CoverageNote, VolumeChart, numberFormat } fr
 import { periodRange } from './periods';
 import { ReadingDialog } from './reading-dialog';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 
 function Counter({ label, value }: { label: string; value: number | null }) {
   return (

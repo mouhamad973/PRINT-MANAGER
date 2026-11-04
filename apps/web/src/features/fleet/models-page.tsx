@@ -1,9 +1,15 @@
 'use client';
 
-import { COLOR_MODE_LABELS, COLOR_MODES, type PrinterModel } from '@arksen/shared-types';
+import {
+  COLOR_MODE_LABELS,
+  COLOR_MODES,
+  type PrinterModel,
+  type Tenant,
+} from '@arksen/shared-types';
 import type { PrinterModelCreateInput } from '@arksen/validation';
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { BookOpenText, Pencil, Plus, Trash2 } from 'lucide-react';
+import { BookOpenText, Droplets, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Badge } from '@/components/ui/badge';
@@ -24,7 +30,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { TonersDialog } from '@/features/consumption/toners-dialog';
 import { useSession } from '@/features/session/session-provider';
+import { apiFetch } from '@/lib/api';
 import { fleetApi, fleetKeys, send } from './api';
 import { ColorModeTag } from './fleet-badges';
 import { ModelDialog } from './model-dialog';
@@ -53,6 +61,21 @@ function ModelsList({ tenantId }: { tenantId: string | null }) {
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<PrinterModel | null | 'new'>(null);
   const [deleting, setDeleting] = useState<PrinterModel | null>(null);
+  const [tonersOf, setTonersOf] = useState<PrinterModel | null>(null);
+  // Lien direct vers les toners d'une fiche, depuis la fiche d'une machine.
+  const requested = useSearchParams().get('toners');
+  const [requestHandled, setRequestHandled] = useState(false);
+  const requestedModel = useQuery({
+    queryKey: fleetKeys.models(tenantId, { id: requested }),
+    queryFn: () => fleetApi.model(tenantId!, requested!),
+    enabled: Boolean(tenantId && requested && !requestHandled),
+  });
+  const tenant = useQuery({
+    queryKey: ['tenants', tenantId],
+    queryFn: () => apiFetch<Tenant>(`/tenants/${tenantId}`),
+    enabled: Boolean(tenantId),
+  });
+  const shownToners = tonersOf ?? (!requestHandled ? (requestedModel.data ?? null) : null);
   const base = tenantId ? `/tenants/${tenantId}/printer-models` : '/printer-models';
   const params = { search, colorMode, scope: catalogMode ? '' : scope, page };
 
@@ -178,11 +201,9 @@ function ModelsList({ tenantId }: { tenantId: string | null }) {
                   <TableHead className="hidden lg:table-cell">Volume max.</TableHead>
                   {!catalogMode && <TableHead className="hidden sm:table-cell">Origine</TableHead>}
                   <TableHead className="text-right">Machines</TableHead>
-                  {canManage && (
-                    <TableHead className="text-right">
-                      <span className="sr-only">Actions</span>
-                    </TableHead>
-                  )}
+                  <TableHead className="text-right">
+                    <span className="sr-only">Actions</span>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -219,9 +240,18 @@ function ModelsList({ tenantId }: { tenantId: string | null }) {
                       </TableCell>
                     )}
                     <TableCell className="text-right tabular-nums">{model.printerCount}</TableCell>
-                    {canManage && (
-                      <TableCell className="text-right whitespace-nowrap">
-                        {editable(model) ? (
+                    <TableCell className="text-right whitespace-nowrap">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Toners de ${model.name}`}
+                        title="Toners et prix"
+                        onClick={() => setTonersOf(model)}
+                      >
+                        <Droplets aria-hidden="true" />
+                      </Button>
+                      {canManage &&
+                        (editable(model) ? (
                           <>
                             <Button
                               variant="ghost"
@@ -248,10 +278,14 @@ function ModelsList({ tenantId }: { tenantId: string | null }) {
                             </Button>
                           </>
                         ) : (
-                          <span className="text-xs text-muted-foreground">Lecture seule</span>
-                        )}
-                      </TableCell>
-                    )}
+                          <span
+                            className="inline-block w-20 text-xs text-muted-foreground"
+                            title="Fiche du catalogue Arksen"
+                          >
+                            Catalogue
+                          </span>
+                        ))}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -277,6 +311,22 @@ function ModelsList({ tenantId }: { tenantId: string | null }) {
         }
         onSubmit={save}
       />
+      {shownToners && (
+        <TonersDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) {
+              setTonersOf(null);
+              setRequestHandled(true);
+            }
+          }}
+          tenantId={tenantId}
+          model={shownToners}
+          canEditSpecs={editable(shownToners)}
+          canEditPrices={!catalogMode && can('consumption:manage')}
+          currency={tenant.data?.currency ?? null}
+        />
+      )}
       <ConfirmDialog
         open={deleting !== null}
         onOpenChange={(open) => !open && setDeleting(null)}

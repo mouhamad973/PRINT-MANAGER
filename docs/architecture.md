@@ -104,6 +104,8 @@ La matrice des rôles est définie dans le code (`packages/shared-types/src/acce
 | `printer-models:manage`   |     Oui     |     Oui      |       Oui        |            |             |             |
 | `meters:read`             |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |     Oui     |
 | `meters:manage`           |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
+| `consumption:read`        |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |             |
+| `consumption:manage`      |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
 
 Un administrateur client ne peut ni attribuer le rôle Super Administrateur, ni modifier son propre rôle ou statut.
 
@@ -187,6 +189,48 @@ Un relevé (`meter_readings`) photographie les compteurs noir et blanc et couleu
 Les seuils sont réunis dans `apps/api/src/meters/meter-analysis.ts`, un module sans accès à la base, testé isolément.
 
 **Comparaison des périodes.** Les volumes d'une période se comparent à la période précédente de même durée, ou à la même période un an plus tôt.
+
+## Moteur de consommation CMJN
+
+Le moteur est écrit en Python, dans `services/analytics` (`cmyk.py` pour les formules, `cmyk_api.py` pour le point d'entrée `POST /v1/cmyk/estimate`). Il ne lit ni n'écrit aucune donnée : l'API rassemble tout ce qu'il calcule (toners, prix, profils, mesures, pages tirées des compteurs) et lui envoie un lot de machines. Il servira aussi l'estimation du toner d'un fichier PDF en Phase 6.
+
+**Formules**, calculées canal par canal :
+
+| Grandeur                  | Calcul                                                                                         |
+| ------------------------- | ---------------------------------------------------------------------------------------------- |
+| Consommation de référence | masse du toner ÷ rendement constructeur, en grammes par page                                   |
+| Consommation théorique    | référence × (aplat ÷ couverture de référence) × pages × facteur de format × facteur de support |
+| Consommation estimée      | théorique × coefficient de calibration                                                         |
+| Coût                      | prix de la cartouche ÷ masse du toner × grammes                                                |
+| Écart                     | réel − théorique, en grammes et rapporté au théorique                                          |
+| Taux de surconsommation   | l'écart rapporté au théorique quand il est positif, zéro sinon                                 |
+
+- **Pages concernées :** le noir s'imprime sur toutes les pages, le cyan, le magenta et le jaune sur les pages couleur seulement.
+- **Couverture de référence :** 5 % par défaut, celle des normes de rendement ISO/IEC 19752 et 19798. Elle se règle par toner.
+- **Facteur de format :** la surface rapportée à l'A4 (A3 : 2 ; SRA3 : 320 × 450 ÷ 210 × 297, soit 2,31). Si les compteurs comptent déjà un A3 pour deux pages, le format reste A4.
+- **Facteur de support :** 1 pour un papier standard. Aucune valeur par type de support n'est inventée : c'est un réglage de la machine.
+
+**Aplat.** En Phase 5, l'aplat de chaque canal est un **aplat moyen supposé**, réglé par machine (5 % par défaut). L'analyse des fichiers (Phase 6) mesurera l'aplat réel des travaux.
+
+**Trois natures de valeur**, jamais confondues :
+
+| Valeur    | Origine                                                                                                   |
+| --------- | --------------------------------------------------------------------------------------------------------- |
+| Théorique | Le moteur, d'après le rendement constructeur, l'aplat et les pages                                        |
+| Estimée   | La théorique corrigée par la calibration                                                                  |
+| Réelle    | Une pesée (mesurée), ou des cartouches vidées multipliées par leur masse (estimée). Jamais un niveau SNMP |
+
+**Calibration progressive.** Pour chaque canal d'une machine :
+
+1. un coefficient saisi à la main l'emporte ;
+2. sinon, les consommations réelles des autres machines du même modèle donnent un coefficient de modèle ;
+3. les consommations réelles de la machine donnent son coefficient, lissé vers celui du modèle (ou vers 1 sans mesure du modèle).
+
+Le lissage : k = (Σ réel + m × k_ref × T̄) / (Σ théorique + m × T̄), où T̄ est le théorique moyen d'une mesure et m = 2. Une seule mesure ne fait donc qu'une partie du chemin. La confiance est faible jusqu'à 2 mesures, moyenne jusqu'à 5, élevée au-delà.
+
+**Toners et prix.** Les toners d'un modèle suivent sa fiche technique : catalogue Arksen ou fiche d'entreprise, avec les mêmes politiques RLS et un déclencheur qui garantit le même périmètre. Les prix d'achat sont propres à chaque entreprise, dans sa devise (`tenants.currency`, XOF par défaut). Un déclencheur refuse le prix d'un toner privé d'une autre entreprise.
+
+**Disponibilité.** Si le moteur ne répond pas, les pages de consommation affichent « Le moteur de calcul est indisponible » (HTTP 503). Il n'est joignable que par l'API, sur le réseau interne ; son port publié en développement disparaîtra en Phase 10.
 
 ## Origine des données
 

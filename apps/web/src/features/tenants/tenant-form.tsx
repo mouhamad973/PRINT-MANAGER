@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import type { Tenant } from '@arksen/shared-types';
+import { CURRENCIES, type Tenant } from '@arksen/shared-types';
 import { tenantCreateSchema } from '@arksen/validation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -9,6 +9,7 @@ import type { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { describedBy, Field, FormError } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 import { ApiError } from '@/lib/api';
 
 const detailsSchema = tenantCreateSchema.omit({ slug: true });
@@ -65,6 +66,7 @@ export function TenantForm({ tenant, submitLabel, disabled, onSubmit }: TenantFo
       address: tenant?.address ?? '',
       city: tenant?.city ?? '',
       country: tenant?.country ?? '',
+      currency: (tenant?.currency as CreateValues['currency']) ?? 'XOF',
     },
   });
 
@@ -138,6 +140,20 @@ export function TenantForm({ tenant, submitLabel, disabled, onSubmit }: TenantFo
             </Field>
           );
         })}
+        <Field
+          id="tenant-currency"
+          label="Devise"
+          error={errors.currency?.message}
+          hint="Prix des toners et coûts d’impression"
+        >
+          <Select id="tenant-currency" disabled={disabled} {...register('currency')}>
+            {CURRENCIES.map((currency) => (
+              <option key={currency} value={currency}>
+                {currency}
+              </option>
+            ))}
+          </Select>
+        </Field>
       </div>
       {!disabled && (
         <div className="flex justify-end">

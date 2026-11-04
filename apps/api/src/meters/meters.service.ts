@@ -69,7 +69,7 @@ function fromRaw(row: RawReading): Reading & { printerId: string } {
   };
 }
 
-function startOfDay(iso: string): Date {
+export function startOfDay(iso: string): Date {
   return new Date(`${iso}T00:00:00.000Z`);
 }
 
@@ -553,7 +553,7 @@ function checkColor(
  * Relevés utiles au calcul des volumes de `[from, to]` : ceux de la période, plus, pour chaque
  * machine, le dernier avant et le premier après, qui encadrent ses bords. Triés par date.
  */
-async function loadReadings(
+export async function loadReadings(
   tx: TransactionClient,
   printerIds: string[],
   from: string,

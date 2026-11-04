@@ -1,4 +1,4 @@
-import { TENANT_ROLES, TENANT_STATUSES, USER_STATUSES } from '@arksen/shared-types';
+import { CURRENCIES, TENANT_ROLES, TENANT_STATUSES, USER_STATUSES } from '@arksen/shared-types';
 import { z } from 'zod';
 
 export const PASSWORD_MIN_LENGTH = 12;
@@ -63,9 +63,14 @@ const tenantFields = {
   address: optionalText(200),
   city: optionalText(100),
   country: optionalText(100),
+  currency: z.enum(CURRENCIES, 'Choisissez une devise.'),
 };
 
-export const tenantCreateSchema = z.object({ ...tenantFields, slug: slugSchema });
+export const tenantCreateSchema = z.object({
+  ...tenantFields,
+  slug: slugSchema,
+  currency: tenantFields.currency.default('XOF'),
+});
 
 export const tenantUpdateSchema = z
   .object({ ...tenantFields, status: z.enum(TENANT_STATUSES) })

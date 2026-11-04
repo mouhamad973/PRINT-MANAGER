@@ -29,6 +29,12 @@ import {
   numberFormat,
 } from '@/features/meters/meters-ui';
 import { periodRange } from '@/features/meters/periods';
+import {
+  INK_CLASSES,
+  InkLabel,
+  formatGrams,
+  formatMoney,
+} from '@/features/consumption/consumption-ui';
 import { useSession } from '@/features/session/session-provider';
 import { fleetApi, fleetKeys } from './api';
 import { ChooseTenant } from './choose-tenant';
@@ -46,7 +52,6 @@ function share(part: number, total: number): string {
 
 /** Indicateurs du cahier des charges qui arrivent avec les phases suivantes : annoncés, jamais simulés. */
 const UPCOMING = [
-  { label: 'Consommation toner CMJN, théorique et réelle', phase: 5 },
   { label: 'Machines en ligne et hors ligne', phase: 7 },
   { label: 'Alertes, stocks critiques et prévisions', phase: 8 },
   { label: 'Coût moyen par page', phase: 9 },
@@ -134,6 +139,11 @@ function Dashboard({ tenantId }: { tenantId: string }) {
     queryKey: fleetKeys.anomalies(tenantId, { siteId }),
     queryFn: () => fleetApi.anomalies(tenantId, { siteId }),
     enabled: can('meters:read'),
+  });
+  const consumption = useQuery({
+    queryKey: fleetKeys.consumption(tenantId, volumeParams),
+    queryFn: () => fleetApi.consumption(tenantId, volumeParams),
+    enabled: can('consumption:read'),
   });
   const sites = useQuery({
     queryKey: fleetKeys.sites(tenantId, { all: true }),
@@ -338,6 +348,50 @@ function Dashboard({ tenantId }: { tenantId: string }) {
             )}
           </Panel>
         </div>
+      )}
+
+      {consumption.data && consumption.data.totals.pages > 0 && (
+        <Panel>
+          <PanelHeader
+            title="Toner estimé, 30 derniers jours"
+            description={`${formatMoney(consumption.data.totals.costEstimated, consumption.data.currency)} de toner, soit ${formatMoney(consumption.data.totals.costPerPage, consumption.data.currency, true)} par page${consumption.data.totals.completeCost ? '' : ' (prix incomplets)'}`}
+            actions={
+              <Button variant="ghost" size="sm" asChild>
+                <Link href={href('/consumption')}>
+                  Consommation
+                  <ArrowRight aria-hidden="true" />
+                </Link>
+              </Button>
+            }
+          />
+          <ul className="grid gap-x-8 gap-y-5 px-5 pb-6 sm:grid-cols-2 xl:grid-cols-4">
+            {consumption.data.channels.map((channel) => {
+              const max = Math.max(
+                1,
+                ...consumption.data.channels.map((item) => item.estimatedGrams),
+              );
+              return (
+                <li key={channel.channel} className="space-y-2">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <InkLabel channel={channel.channel} className="text-[13px] font-medium" />
+                    <span className="font-semibold tabular-nums">
+                      {formatGrams(channel.estimatedGrams)}
+                    </span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+                    <div
+                      className={`h-full rounded-full ${INK_CLASSES[channel.channel]}`}
+                      style={{ width: `${(channel.estimatedGrams / max) * 100}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Théorique {formatGrams(channel.theoreticalGrams)}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
+        </Panel>
       )}
 
       <div className="grid gap-4 xl:grid-cols-3">

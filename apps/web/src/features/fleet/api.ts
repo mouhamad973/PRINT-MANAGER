@@ -1,4 +1,8 @@
 import type {
+  ConsumptionSimulation,
+  FleetConsumption,
+  PrinterConsumptionDetail,
+  TonerSpec,
   FleetDashboard,
   FleetMeterAnomaly,
   FleetVolumes,
@@ -30,6 +34,10 @@ export const fleetKeys = {
     ['fleet', tenantId, 'volumes', params] as const,
   anomalies: (tenantId: string, params: object = {}) =>
     ['fleet', tenantId, 'anomalies', params] as const,
+  consumption: (tenantId: string, params: object = {}) =>
+    ['fleet', tenantId, 'consumption', params] as const,
+  toners: (tenantId: string | null, modelId: string) =>
+    ['fleet', tenantId ?? 'catalog', 'toners', modelId] as const,
 };
 
 type Params = Record<string, string | number | undefined>;
@@ -65,6 +73,22 @@ export const fleetApi = {
     apiFetch<FleetVolumes>(`/tenants/${tenantId}/volumes${queryString(params)}`),
   anomalies: (tenantId: string, params: Params = {}) =>
     apiFetch<FleetMeterAnomaly[]>(`/tenants/${tenantId}/meter-anomalies${queryString(params)}`),
+  consumption: (tenantId: string, params: Params) =>
+    apiFetch<FleetConsumption>(`/tenants/${tenantId}/consumption${queryString(params)}`),
+  printerConsumption: (tenantId: string, printerId: string, params: Params) =>
+    apiFetch<PrinterConsumptionDetail>(
+      `/tenants/${tenantId}/printers/${printerId}/consumption${queryString(params)}`,
+    ),
+  /** Toners d'une fiche : vue de l'entreprise (avec ses prix), ou catalogue si `tenantId` est nul. */
+  toners: (tenantId: string | null, modelId: string) =>
+    apiFetch<TonerSpec[]>(
+      `${tenantId ? `/tenants/${tenantId}` : ''}/printer-models/${modelId}/toners`,
+    ),
+  simulate: (tenantId: string, body: unknown) =>
+    apiFetch<ConsumptionSimulation>(`/tenants/${tenantId}/consumption/simulate`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 };
 
 export function send<T>(method: string, path: string, body?: unknown): Promise<T> {

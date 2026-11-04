@@ -86,8 +86,13 @@ export const NAVIGATION: NavGroup[] = [
   {
     label: 'Consommation',
     items: [
-      { label: 'Aplat CMJN', icon: Palette, phase: 5 },
-      { label: 'Consommation toner', icon: Droplets, phase: 5 },
+      { label: 'Aplat CMJN', icon: Palette, href: '/aplat', permission: 'consumption:read' },
+      {
+        label: 'Consommation toner',
+        icon: Droplets,
+        href: '/consumption',
+        permission: 'consumption:read',
+      },
       { label: 'Analyse PDF', icon: FileSearch, phase: 6 },
     ],
   },

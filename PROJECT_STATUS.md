@@ -9,8 +9,8 @@ Dernière mise à jour : 4 novembre 2026.
 | 1     | Architecture et configuration du projet      | Terminée et validée                |
 | 2     | Authentification et gestion des utilisateurs | Terminée et validée                |
 | 3     | Dashboard et gestion du parc machines        | Terminée et validée                |
-| 4     | Compteurs et historique                      | Terminée, en attente de validation |
-| 5     | Moteur de calcul de consommation CMJN        | À faire                            |
+| 4     | Compteurs et historique                      | Terminée et validée                |
+| 5     | Moteur de calcul de consommation CMJN        | Terminée, en attente de validation |
 | 6     | Analyse PDF                                  | À faire                            |
 | 7     | Collecteur SNMP et agent Windows             | À faire                            |
 | 8     | Gestion des consommables et stocks           | À faire                            |
@@ -86,6 +86,78 @@ Comportement en panne, vérifié sur la stack réelle :
 - **Starlette** signale la dépréciation de `httpx` pour son client de test. Cela ne concerne que les tests.
 - **Licences AGPL :** PyMuPDF et Ghostscript, prévus en Phase 6, sont sous AGPL ou sous licence commerciale Artifex. À faire vérifier par un juriste avant toute commercialisation.
 - **Aucun commit :** le dépôt git est initialisé, mais rien n'a encore été commité.
+
+## Phase 5 : Moteur de calcul de consommation CMJN
+
+### Livré
+
+- **Moteur en Python** (`services/analytics`), indépendant et sans état : il reçoit toutes ses données et ne conserve rien. Chaque canal, cyan, magenta, jaune et noir, est calculé indépendamment. Le noir porte sur toutes les pages, les couleurs sur les pages couleur.
+- **Calcul selon l'aplat :** consommation de référence = masse ÷ rendement constructeur ; consommation théorique = référence × (aplat ÷ couverture de référence) × pages × facteur de format × facteur de support. Couverture de référence ISO/IEC 19752 et 19798 (5 %) par défaut ; facteur de format égal à la surface rapportée à l'A4.
+- **Consommation théorique, estimée et réelle,** toujours distinguées. La réelle est mesurée par pesée, ou estimée d'après les cartouches vidées, que le moteur convertit en grammes avec la masse du toner.
+- **Écarts et taux de surconsommation :** chaque consommation réelle est comparée au théorique de la même période (pages tirées des compteurs), en grammes et en pourcentage.
+- **Coût toner par page :** prix d'achat de chaque cartouche, propre à l'entreprise et dans sa devise (nouvelle devise de l'entreprise, XOF par défaut). Coût par canal, par machine, par page et pour 1 000 pages ; les coûts sont marqués partiels quand un prix manque.
+- **Calibration par machine, progressive :** coefficient manuel, sinon coefficient appris des consommations réelles de la machine, lissé vers celui de son modèle (mesures des autres machines du même modèle), lui-même lissé vers 1. Le niveau de confiance suit le nombre de mesures.
+- **Interface :**
+  - page **Consommation toner** : parc, canaux, machines, coûts ;
+  - simulateur **Aplat CMJN** : un travail décrit par son aplat, sur une machine ou un modèle ;
+  - panneau **Consommation toner** de la fiche machine : calibration, paramètres de calcul, consommations réelles et écarts ;
+  - **toners et prix** de chaque fiche technique ;
+  - panneau toner du tableau de bord.
+
+Décisions et formules détaillées dans [docs/architecture.md](docs/architecture.md), section « Moteur de consommation CMJN ».
+
+### Critères d'acceptation
+
+| Critère                                        | Résultat                                                        |
+| ---------------------------------------------- | --------------------------------------------------------------- |
+| Calcul indépendant C, M, J, K                  | Validé : chaque canal sur ses propres pages et son propre aplat |
+| Calcul selon l'aplat                           | Validé, formule du cahier des charges                           |
+| Consommation théorique                         | Validé                                                          |
+| Consommation réelle ou estimée                 | Validé : pesée (mesurée) ou cartouches vidées (estimée)         |
+| Écarts et taux de surconsommation              | Validé                                                          |
+| Coût toner par page                            | Validé, dans la devise de l'entreprise                          |
+| Calibration par machine                        | Validé : manuelle, par machine, par modèle, progressive         |
+| Tests mathématiques                            | Validé : 41 tests Python, résultats calculés à la main          |
+| `build`, `typecheck`, `lint` et `test` passent | Validé : 30 tâches sur 30, sans cache                           |
+
+Détail des tests :
+
+| Paquet                 | Tests | Dont nouveaux en Phase 5 |
+| ---------------------- | ----- | ------------------------ |
+| `@arksen/api`          | 60    |                          |
+| `@arksen/validation`   | 49    | 8                        |
+| `@arksen/analytics`    | 42    | 41                       |
+| `@arksen/web`          | 34    |                          |
+| `@arksen/shared-types` | 12    |                          |
+| `@arksen/database`     | 2     |                          |
+| `@arksen/workers`      | 2     |                          |
+| `@arksen/collector`    | 2     |                          |
+
+Soit 203 tests unitaires et d'intégration, et **68 tests de bout en bout** sur la stack Docker réelle (12 nouveaux, dans `apps/api/test/e2e/consumption.e2e.test.ts`), tous réussis du premier coup. Ils traversent toute la chaîne (API, compteurs, moteur Python, base) avec des valeurs calculées à la main :
+
+- 1 500 pages dont 500 couleur, aplats 10, 5, 2,5 et 5 % : 20, 10, 5 et 30 g, pour un coût de 16 ;
+- une pesée de 36 g pour 30 g théoriques : écart de +6 g, soit 20 % de surconsommation, et un coefficient de 96 / 90 ;
+- la conversion d'une demi-cartouche en 150 g, la simulation d'un travail, le refus d'un toner couleur sur un modèle noir et blanc ;
+- l'isolation : toners privés, consommation d'une autre entreprise, et prix d'un toner privé d'une autre entreprise refusé en base, même pour le rôle système.
+
+Vérification de la stack (`pnpm stack:smoke`) : 11 contrôles sur 11.
+
+Vérification visuelle : page Consommation toner, simulateur Aplat CMJN, fiche machine et tableau de bord, en clair, en sombre et sur mobile, sans erreur dans la console. Données de démonstration : toners fictifs (références `DEMO-…`) et prix pour les trois fiches de démonstration, profils de calcul et consommations réelles sur deux machines.
+
+### Écarts par rapport au plan
+
+- **Aplat moyen supposé :** en attendant l'analyse des fichiers (Phase 6), l'aplat de chaque canal est un paramètre de la machine (5 % par défaut). Le simulateur accepte un aplat saisi.
+- **Devise par entreprise :** ajoutée au formulaire d'entreprise, pour que les coûts aient une unité.
+- **Route `/aplat` :** le dossier `coverage` était exclu par `.dockerignore`, `.gitignore` et `.prettierignore` (motif des rapports de couverture de tests). La route a été renommée avant d'être versionnée.
+
+### Points restants
+
+- **Facteurs de support :** aucune valeur par type de papier n'est inventée ; le facteur se règle par machine. Des valeurs mesurées pourront alimenter un référentiel.
+- **Catalogue Arksen :** toujours vide. Ses toners se renseignent depuis les fiches du catalogue.
+- **Requêtes concurrentes dans une transaction :** le pilote PostgreSQL signale (avertissement de dépréciation) des `Promise.all` dans les transactions de 11 services, écrits depuis la Phase 2. Sans effet aujourd'hui, ils devront devenir séquentiels avant le passage à `pg` 9.
+- **Moteur sans authentification :** il n'est joignable que par l'API sur le réseau interne. Son port publié en développement sera retiré en Phase 10.
+- **Données de test :** données de démonstration dans `demo-interface`, entreprises `e2e-…` laissées par les tests.
+- **Points des phases précédentes toujours ouverts :** voir les sections précédentes.
 
 ## Phase 4 : Compteurs et historique
 
@@ -299,6 +371,16 @@ Vérification dans le navigateur : redirection vers `/login` avec retour à la p
 - **Points de la Phase 1 toujours ouverts :** ESLint 10, licences AGPL de la Phase 6, aucun commit.
 
 ## Journal des modifications
+
+### 5 novembre 2026 : Phase 5
+
+- **Moteur :** `services/analytics/src/arksen_analytics/cmyk.py` (formules) et `cmyk_api.py` (`POST /v1/cmyk/estimate`), avec 41 tests mathématiques.
+- **Base de données :** migration `20261105000000_consumption` : `toner_models`, `toner_prices`, `calibration_profiles`, `consumption_measurements`, devise des entreprises, contraintes de domaine, déclencheurs de périmètre et RLS.
+- **API :** module `consumption` (toners et prix, profils, consommations réelles, consommation d'une machine et du parc, simulation) et client du moteur `engine.client.ts`.
+- **Contrats :** `packages/shared-types/src/consumption.ts`, `packages/validation/src/consumption.ts`, permissions `consumption:read` et `consumption:manage`, devise dans les schémas d'entreprise.
+- **Web :** fonctionnalité `features/consumption` (page Consommation toner, simulateur Aplat CMJN, panneau de la fiche machine, dialogues des paramètres, des mesures et des toners), panneau toner du tableau de bord, devise dans le formulaire d'entreprise, historique des relevés paginé par 10, cartes d'indicateur compactes pour les montants.
+- **Tests :** `consumption.e2e.test.ts`, tests des schémas.
+- **Documentation :** `docs/architecture.md` (section « Moteur de consommation CMJN » et matrice des droits) et `docs/development.md`.
 
 ### 4 novembre 2026 : Phase 4
 

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuditModule } from './audit/audit.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { ConfigModule } from './config/config.module.js';
+import { ConsumptionModule } from './consumption/consumption.module.js';
 import { DashboardModule } from './dashboard/dashboard.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './health/health.module.js';
@@ -32,6 +33,7 @@ import { UsersModule } from './users/users.module.js';
     PrintersModule,
     DashboardModule,
     MetersModule,
+    ConsumptionModule,
   ],
 })
 export class AppModule {}

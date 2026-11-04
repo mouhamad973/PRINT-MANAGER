@@ -36,6 +36,10 @@ export const PERMISSIONS = [
   'meters:read',
   /** Saisir, importer et supprimer des relevés de compteurs. */
   'meters:manage',
+  /** Consulter la consommation toner, les coûts et la calibration. */
+  'consumption:read',
+  /** Régler la calibration, saisir les consommations réelles et les prix des toners. */
+  'consumption:manage',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -52,14 +56,23 @@ const FLEET_MANAGEMENT: readonly Permission[] = [
   'printers:network:manage',
   'printer-models:manage',
   'meters:manage',
+  'consumption:read',
+  'consumption:manage',
 ];
 
 export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
   SUPER_ADMIN: PERMISSIONS,
   CLIENT_ADMIN: [...TENANT_BASE, 'users:read', 'users:manage', 'audit:read', ...FLEET_MANAGEMENT],
   PRINT_MANAGER: [...TENANT_BASE, 'users:read', ...FLEET_MANAGEMENT],
-  TECHNICIAN: [...TENANT_BASE, 'printers:manage', 'printers:network:manage', 'meters:manage'],
-  STOCK_MANAGER: TENANT_BASE,
+  TECHNICIAN: [
+    ...TENANT_BASE,
+    'printers:manage',
+    'printers:network:manage',
+    'meters:manage',
+    'consumption:read',
+    'consumption:manage',
+  ],
+  STOCK_MANAGER: [...TENANT_BASE, 'consumption:read'],
   USER: TENANT_BASE,
 };
 
@@ -74,6 +87,8 @@ export const PERMISSION_LABELS: Partial<Record<Permission, string>> = {
   'printer-models:manage': 'Gérer les fiches techniques',
   'meters:read': 'Consulter les compteurs et les volumes',
   'meters:manage': 'Saisir et importer les relevés',
+  'consumption:read': 'Consulter la consommation et les coûts toner',
+  'consumption:manage': 'Calibrer et saisir les consommations réelles',
   'users:read': 'Voir les utilisateurs',
   'users:manage': 'Gérer les utilisateurs',
   'audit:read': 'Consulter le journal d’audit',
@@ -122,6 +137,8 @@ export interface Tenant extends TenantSummary {
   address: string | null;
   city: string | null;
   country: string | null;
+  /** Devise des prix et des coûts (ISO 4217). */
+  currency: string;
   userCount: number;
   createdAt: string;
   updatedAt: string;
