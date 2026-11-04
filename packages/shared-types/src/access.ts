@@ -48,6 +48,16 @@ export const PERMISSIONS = [
   'agents:read',
   /** Enregistrer, renouveler et révoquer les agents ; associer les équipements découverts. */
   'agents:manage',
+  /** Consulter les toners, les stocks, les mouvements et les prévisions. */
+  'stocks:read',
+  /** Réceptionner, sortir, inventorier et transférer les toners ; régler les seuils. */
+  'stocks:manage',
+  /** Enregistrer et annuler les remplacements de toner sur les machines. */
+  'toner-replacements:manage',
+  /** Consulter les alertes. */
+  'alerts:read',
+  /** Prendre en compte et clôturer les alertes. */
+  'alerts:manage',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -70,6 +80,11 @@ const FLEET_MANAGEMENT: readonly Permission[] = [
   'print-jobs:manage',
   'agents:read',
   'agents:manage',
+  'stocks:read',
+  'stocks:manage',
+  'toner-replacements:manage',
+  'alerts:read',
+  'alerts:manage',
 ];
 
 export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
@@ -87,8 +102,21 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
     'print-jobs:manage',
     'agents:read',
     'agents:manage',
+    'stocks:read',
+    'toner-replacements:manage',
+    'alerts:read',
+    'alerts:manage',
   ],
-  STOCK_MANAGER: [...TENANT_BASE, 'consumption:read', 'print-jobs:read'],
+  STOCK_MANAGER: [
+    ...TENANT_BASE,
+    'consumption:read',
+    'print-jobs:read',
+    'stocks:read',
+    'stocks:manage',
+    'toner-replacements:manage',
+    'alerts:read',
+    'alerts:manage',
+  ],
   USER: TENANT_BASE,
 };
 
@@ -109,6 +137,11 @@ export const PERMISSION_LABELS: Partial<Record<Permission, string>> = {
   'print-jobs:manage': 'Analyser des fichiers PDF',
   'agents:read': 'Consulter les agents de collecte',
   'agents:manage': 'Enregistrer et révoquer les agents de collecte',
+  'stocks:read': 'Consulter les toners, les stocks et les prévisions',
+  'stocks:manage': 'Gérer les stocks de toner et leurs seuils',
+  'toner-replacements:manage': 'Enregistrer les remplacements de toner',
+  'alerts:read': 'Consulter les alertes',
+  'alerts:manage': 'Prendre en compte et clôturer les alertes',
   'users:read': 'Voir les utilisateurs',
   'users:manage': 'Gérer les utilisateurs',
   'audit:read': 'Consulter le journal d’audit',

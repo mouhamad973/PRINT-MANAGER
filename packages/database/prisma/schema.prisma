@@ -62,6 +62,11 @@ model Tenant {
   agentSyncLogs      AgentSyncLog[]
   printerStates      PrinterState[]
   discoveredDevices  DiscoveredDevice[]
+  tonerStocks        TonerStock[]
+  stockMovements     StockMovement[]
+  tonerReplacements  TonerReplacement[]
+  supplyLevels       SupplyLevelReading[]
+  alerts             Alert[]
 
   @@map("tenants")
 }
@@ -197,6 +202,8 @@ model Site {
   tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   printers Printer[]
   agents   CollectorAgent[]
+  stocks   TonerStock[]
+  alerts   Alert[]
 
   @@unique([tenantId, name])
   /// Cible des clés étrangères composites : une machine ne peut pas pointer vers le site d'une autre entreprise.
@@ -297,6 +304,9 @@ model Printer {
   printJobs     PrintJob[]
   snmpState     PrinterState?
   discoveries   DiscoveredDevice[]
+  replacements  TonerReplacement[]
+  supplyLevels  SupplyLevelReading[]
+  alerts        Alert[]
 
   @@unique([tenantId, serialNumber])
   @@unique([id, tenantId])
@@ -716,4 +726,172 @@ model DiscoveredDevice {
   @@unique([tenantId, ipAddress])
   @@index([tenantId, lastSeenAt(sort: Desc)])
   @@map("discovered_devices")
+}
+
+// =====================================================================
+// Phase 8 : toners, stocks et alertes
+// =====================================================================
+
+/// Article de stock : une référence de cartouche sur un site. La quantité est tenue par le
+/// registre des mouvements (déclencheur) : elle ne se modifie jamais directement.
+model TonerStock {
+  id           String       @id @default(uuid(7)) @db.Uuid
+  tenantId     String       @map("tenant_id") @db.Uuid
+  siteId       String       @map("site_id") @db.Uuid
+  /// Référence telle qu'écrite dans les fiches techniques de l'entreprise.
+  reference    String
+  channel      TonerChannel
+  quantity     Int          @default(0)
+  /// Seuil minimum : à ce niveau ou en dessous, le stock est signalé.
+  minQuantity  Int          @default(0) @map("min_quantity")
+  /// Délai de réapprovisionnement, en jours : une rupture prévue avant ce délai est signalée.
+  leadTimeDays Int          @default(7) @map("lead_time_days")
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant       Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  site         Site               @relation(fields: [siteId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  movements    StockMovement[]
+  replacements TonerReplacement[]
+  alerts       Alert[]
+
+  @@unique([siteId, reference])
+  @@unique([id, tenantId])
+  @@index([tenantId, reference])
+  @@map("toner_stocks")
+}
+
+enum StockMovementType {
+  RECEIPT
+  ISSUE
+  INSTALLATION
+  CANCELLATION
+  ADJUSTMENT
+  TRANSFER_OUT
+  TRANSFER_IN
+}
+
+/// Registre des mouvements de stock : immuable (déclencheur), signé, avec le solde après chaque
+/// mouvement. Une erreur se corrige par un nouveau mouvement, jamais en réécrivant l'historique.
+model StockMovement {
+  id             String            @id @default(uuid(7)) @db.Uuid
+  tenantId       String            @map("tenant_id") @db.Uuid
+  stockId        String            @map("stock_id") @db.Uuid
+  type           StockMovementType
+  quantity       Int
+  /// Calculé par le déclencheur à l'insertion.
+  balanceAfter   Int               @default(0) @map("balance_after")
+  unitCost       Decimal?          @map("unit_cost") @db.Decimal(14, 2)
+  /// Bon de livraison, de commande ou de sortie.
+  reference      String?
+  notes          String?
+  replacementId  String?           @map("replacement_id") @db.Uuid
+  /// Les deux mouvements d'un transfert partagent cet identifiant.
+  transferId     String?           @map("transfer_id") @db.Uuid
+  occurredAt     DateTime          @default(now()) @map("occurred_at") @db.Timestamptz(3)
+  createdById    String?           @map("created_by_id")
+  createdByEmail String?           @map("created_by_email")
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  stock       TonerStock        @relation(fields: [stockId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  replacement TonerReplacement? @relation(fields: [replacementId, tenantId], references: [id, tenantId], onDelete: Restrict)
+
+  @@index([stockId, occurredAt(sort: Desc)])
+  @@index([tenantId, type, occurredAt])
+  @@map("stock_movements")
+}
+
+/// Remplacement d'une cartouche sur une machine. Le compteur au remplacement donne le rendement
+/// réel de la cartouche précédente. Un remplacement erroné est annulé, pas supprimé.
+model TonerReplacement {
+  id                   String       @id @default(uuid(7)) @db.Uuid
+  tenantId             String       @map("tenant_id") @db.Uuid
+  printerId            String       @map("printer_id") @db.Uuid
+  channel              TonerChannel
+  /// Référence et rendement constructeur au moment du remplacement.
+  reference            String?
+  yieldPages           Int?         @map("yield_pages")
+  replacedAt           DateTime     @map("replaced_at") @db.Timestamptz(3)
+  previousLevelPercent Decimal?     @map("previous_level_percent") @db.Decimal(5, 1)
+  /// Compteur noir (noir) ou couleur (cyan, magenta, jaune) au remplacement.
+  counter              Int?
+  stockId              String?      @map("stock_id") @db.Uuid
+  notes                String?
+  createdById          String?      @map("created_by_id")
+  createdByEmail       String?      @map("created_by_email")
+  createdAt            DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  cancelledAt          DateTime?    @map("cancelled_at") @db.Timestamptz(3)
+  cancelledByEmail     String?      @map("cancelled_by_email")
+
+  tenant    Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  printer   Printer         @relation(fields: [printerId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  stock     TonerStock?     @relation(fields: [stockId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  movements StockMovement[]
+
+  @@unique([id, tenantId])
+  @@index([tenantId, replacedAt(sort: Desc)])
+  @@index([printerId, channel, replacedAt])
+  @@map("toner_replacements")
+}
+
+/// Historique des niveaux SNMP des cartouches (origine `snmp_level`). Un point n'est gardé que
+/// si le niveau change ou toutes les six heures : de quoi suivre la tendance sans tout stocker.
+model SupplyLevelReading {
+  printerId    String       @map("printer_id") @db.Uuid
+  tenantId     String       @map("tenant_id") @db.Uuid
+  channel      TonerChannel
+  observedAt   DateTime     @map("observed_at") @db.Timestamptz(3)
+  levelPercent Decimal      @map("level_percent") @db.Decimal(5, 1)
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  printer Printer @relation(fields: [printerId, tenantId], references: [id, tenantId], onDelete: Cascade)
+
+  @@id([printerId, channel, observedAt])
+  @@index([tenantId, observedAt])
+  @@map("supply_level_readings")
+}
+
+enum AlertSeverity {
+  WARNING
+  CRITICAL
+}
+
+enum AlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+/// Alerte : ouverte quand une condition apparaît, résolue d'elle-même quand elle disparaît.
+/// Une seule alerte active par condition (index unique partiel sur la clé de déduplication).
+model Alert {
+  id                  String        @id @default(uuid(7)) @db.Uuid
+  tenantId            String        @map("tenant_id") @db.Uuid
+  type                String
+  severity            AlertSeverity
+  status              AlertStatus   @default(OPEN)
+  dedupeKey           String        @map("dedupe_key")
+  title               String
+  message             String
+  printerId           String?       @map("printer_id") @db.Uuid
+  stockId             String?       @map("stock_id") @db.Uuid
+  siteId              String?       @map("site_id") @db.Uuid
+  channel             TonerChannel?
+  openedAt            DateTime      @default(now()) @map("opened_at") @db.Timestamptz(3)
+  lastSeenAt          DateTime      @default(now()) @map("last_seen_at") @db.Timestamptz(3)
+  acknowledgedAt      DateTime?     @map("acknowledged_at") @db.Timestamptz(3)
+  acknowledgedByEmail String?       @map("acknowledged_by_email")
+  resolvedAt          DateTime?     @map("resolved_at") @db.Timestamptz(3)
+  resolution          String?
+  resolvedByEmail     String?       @map("resolved_by_email")
+
+  tenant  Tenant      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  printer Printer?    @relation(fields: [printerId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  stock   TonerStock? @relation(fields: [stockId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  site    Site?       @relation(fields: [siteId, tenantId], references: [id, tenantId], onDelete: Restrict)
+
+  @@index([tenantId, status, openedAt(sort: Desc)])
+  @@index([tenantId, dedupeKey])
+  @@map("alerts")
 }

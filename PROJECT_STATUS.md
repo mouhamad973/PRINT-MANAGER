@@ -1,6 +1,6 @@
 # État du projet ARKSEN PRINT MANAGER
 
-Dernière mise à jour : 6 novembre 2026.
+Dernière mise à jour : 7 novembre 2026.
 
 ## Avancement
 
@@ -12,8 +12,8 @@ Dernière mise à jour : 6 novembre 2026.
 | 4     | Compteurs et historique                      | Terminée et validée                |
 | 5     | Moteur de calcul de consommation CMJN        | Terminée et validée                |
 | 6     | Analyse PDF                                  | Terminée et validée                |
-| 7     | Collecteur SNMP et agent Windows             | Terminée, en attente de validation |
-| 8     | Gestion des consommables et stocks           | À faire                            |
+| 7     | Collecteur SNMP et agent Windows             | Terminée et validée                |
+| 8     | Gestion des consommables et stocks           | Terminée, en attente de validation |
 | 9     | Coûts, maintenance et contrats               | À faire                            |
 | 10    | Rapports et déploiement commercial           | À faire                            |
 
@@ -86,6 +86,94 @@ Comportement en panne, vérifié sur la stack réelle :
 - **Starlette** signale la dépréciation de `httpx` pour son client de test. Cela ne concerne que les tests.
 - **Licences AGPL :** résolu en Phase 6. PyMuPDF et Ghostscript ont été écartés au profit de PDFium (`pypdfium2`, BSD et Apache 2.0) et de LittleCMS (MIT).
 - **Aucun commit :** résolu, chaque phase est commitée et poussée.
+
+## Phase 8 : Gestion des consommables et stocks
+
+### Livré
+
+- **Toners :** la page **Toners** liste les références des fiches techniques. Pour chacune :
+  - les modèles et les machines équipées ;
+  - le stock tous sites confondus et les remplacements des 90 derniers jours ;
+  - le **rendement constaté**, comparé au rendement constructeur.
+- **Remplacements :** enregistrés avec le compteur de la machine, pris ou non dans un stock. Le compteur donne le rendement réel de la cartouche retirée.
+  - Un remplacement erroné s'annule, et sa cartouche revient dans son stock.
+  - Les remontées de niveau vues par l'agent, sans remplacement enregistré, sont proposées comme **remplacements à confirmer**.
+- **Mouvements de stock :** réception (coût unitaire, bon de livraison), sortie, inventaire (écart avec la quantité comptée), transfert entre sites, installation et annulation.
+  - Le registre est immuable et tient le solde, par déclencheurs en base.
+  - Un stock ne peut jamais devenir négatif, même avec deux sorties simultanées.
+- **Seuils minimums :** seuil et délai de réapprovisionnement par article (une référence sur un site). Niveau suffisant, sous le seuil ou en rupture.
+- **Alertes de rupture :** page **Alertes**, panneau du tableau de bord.
+  - Types : rupture de stock, stock sous le seuil, rupture prévue, toner bientôt épuisé (niveau SNMP de 10 % ou moins), toner épuisé (2 % ou moins).
+  - Une seule alerte active par condition. Les alertes se résolvent d'elles-mêmes, et peuvent être prises en compte ou clôturées.
+- **Prévisions :**
+  - **Rupture de stock :** rythme de consommation par le moteur CMJN (pages relevées, aplat, calibration des machines équipées, sur 90 jours), sinon par l'historique des installations. On en tire la couverture en jours, la date de rupture et la quantité à commander. L'évaluation est horaire, avec un verrou Redis.
+  - **Épuisement de chaque cartouche :** d'après la tendance de ses niveaux SNMP depuis le dernier remplacement (fiche machine).
+- **Historique des niveaux SNMP :** un point par changement de niveau, ou toutes les six heures.
+
+Méthodes et décisions : [docs/architecture.md](docs/architecture.md), section « Toners, stocks et alertes ».
+
+### Critères d'acceptation
+
+| Critère                                        | Résultat                                                                              |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Toners                                         | Validé : références, stock, remplacements, rendement constaté                         |
+| Remplacements                                  | Validé : compteur, sortie de stock, annulation, détection par les niveaux SNMP        |
+| Mouvements de stock                            | Validé : registre immuable et solde tenus en base, stock jamais négatif               |
+| Seuils minimums                                | Validé : seuil et délai par article                                                   |
+| Alertes de rupture                             | Validé : rupture, seuil, rupture prévue, toner bas ou épuisé ; résolution automatique |
+| Prévisions                                     | Validé : moteur CMJN ou historique ; épuisement des cartouches par tendance SNMP      |
+| `build`, `typecheck`, `lint` et `test` passent | Validé : 30 tâches sur 30, sans cache                                                 |
+
+Détail des tests :
+
+| Paquet                 | Tests | Dont nouveaux en Phase 8 |
+| ---------------------- | ----- | ------------------------ |
+| `@arksen/api`          | 70    | 6                        |
+| `@arksen/validation`   | 65    | 5                        |
+| `@arksen/analytics`    | 68    |                          |
+| `@arksen/collector`    | 43    |                          |
+| `@arksen/web`          | 34    |                          |
+| `@arksen/shared-types` | 12    |                          |
+| `@arksen/database`     | 2     |                          |
+| `@arksen/workers`      | 2     |                          |
+
+Soit 296 tests unitaires et d'intégration, et **103 tests de bout en bout** sur la stack Docker réelle (12 nouveaux, dans `apps/api/test/e2e/stocks.e2e.test.ts`). Ils couvrent :
+
+- le registre : 5 reçues, 4 sorties, une sortie de 3 refusée (« Stock insuffisant : 1 »), un inventaire à 3 qui devient un mouvement de +2, les soldes 5, 1 et 3 ;
+- un transfert entre sites ;
+- l'immuabilité en base, même pour le rôle système ;
+- deux remplacements : 12 500 pages entre les compteurs 10 000 et 22 500, soit le rendement constaté ;
+- la rupture et l'annulation d'un remplacement, qui rend la cartouche ;
+- les alertes de niveau envoyées par un agent : bas, épuisé, rafraîchie sans doublon, résolue à la remontée du niveau ;
+- les remplacements à confirmer ;
+- la prévision du moteur : 250 g sur 90 jours pour une cartouche de 300 g, soit 108 jours de couverture ;
+- la prise en compte et la clôture d'une alerte ;
+- les droits par rôle et l'isolation (RLS).
+
+Vérification de la stack (`pnpm stack:smoke`) : 11 contrôles sur 11.
+
+Vérification visuelle : pages Stocks, Toners et Alertes, et tableau de bord, en clair, en sombre et sur mobile, sans erreur dans la console. Données de démonstration dans `demo-interface`, notées « Démonstration » : six articles sur deux sites, réceptions, sorties et remplacements.
+
+Corrections apportées :
+
+- les actions du tableau des articles sont réduites à leur icône sous 1 536 px ;
+- deux blocs du tableau de bord étaient devenus faux : les « indicateurs à venir » annonçaient encore les phases 7 et 8, et la note de connectivité citait la phase 7. Le bloc « Collecte SNMP » affiche désormais les machines en ligne et hors ligne.
+
+### Écarts par rapport au plan
+
+- **Article de stock par référence et par site :** une cartouche commune à plusieurs modèles a un seul stock par site. Les références viennent des fiches techniques.
+- **Remplacements détectés proposés, pas enregistrés :** une remontée de niveau peut venir d'un recalibrage. Un utilisateur confirme, et le stock n'est jamais diminué sans lui.
+- **Prévision par le moteur CMJN :** elle exige les quatre toners d'un modèle couleur, comme le calcul de consommation. Sinon, l'historique des installations prend le relais.
+- **Seuils SNMP fixes :** 10 % et 2 %, communs à toutes les machines.
+
+### Points restants
+
+- **Commandes fournisseurs :** la quantité conseillée est calculée, mais il n'existe pas encore de bon de commande.
+- **Consommation réelle :** un remplacement n'alimente pas encore la calibration de la Phase 5 comme une cartouche vidée ; à relier avec les coûts de la Phase 9.
+- **Rétention :** pas encore de purge de l'historique des niveaux SNMP ni des alertes résolues ; à fixer avec la conservation des données (Phase 10).
+- **Notifications :** les alertes s'affichent dans l'application ; leur envoi par e-mail reste à faire.
+- **Requêtes concurrentes dans une transaction :** toujours ouvert (voir Phase 5).
+- **Données de test :** entreprises `e2e-stock-…` laissées par les tests.
 
 ## Phase 7 : Collecteur SNMP et agent Windows
 
@@ -539,6 +627,15 @@ Vérification dans le navigateur : redirection vers `/login` avec retour à la p
 - **Points de la Phase 1 toujours ouverts :** ESLint 10, licences AGPL de la Phase 6, aucun commit.
 
 ## Journal des modifications
+
+### 7 novembre 2026 : Phase 8
+
+- **Base de données :** migration `20261107000000_stocks` : `toner_stocks`, `stock_movements` (registre immuable, solde par déclencheur, stock jamais négatif), `toner_replacements`, `supply_level_readings`, `alerts` (index unique partiel de déduplication), contraintes et RLS.
+- **API :** modules `stocks` (articles, mouvements, transferts, références, remplacements, détection, prévisions, évaluation horaire des ruptures prévues) et `alerts` (ouverture idempotente, résolution automatique, prise en compte, clôture, synthèse). La collecte alimente l'historique des niveaux et les alertes de toner. L'état SNMP comprend l'épuisement prévu.
+- **Contrats :** `packages/shared-types/src/stocks.ts`, `packages/validation/src/stocks.ts`, permissions `stocks:read`, `stocks:manage`, `toner-replacements:manage`, `alerts:read` et `alerts:manage`.
+- **Web :** pages Stocks, Toners et Alertes, panneau Alertes et stocks critiques du tableau de bord, épuisement prévu dans l'état SNMP, navigation et libellés du journal d'audit.
+- **Tests :** `stocks.e2e.test.ts`, calculs de prévision, schémas ; délais SNMP élargis dans les tests de l'agent pour une machine chargée.
+- **Documentation :** `docs/architecture.md` (section « Toners, stocks et alertes » et matrice des droits), `docs/development.md`.
 
 ### 6 novembre 2026 : Phase 7
 

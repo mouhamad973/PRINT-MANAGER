@@ -35,6 +35,7 @@ import {
   formatGrams,
   formatMoney,
 } from '@/features/consumption/consumption-ui';
+import { AlertsOverview } from '@/features/stocks/alerts-overview';
 import { useSession } from '@/features/session/session-provider';
 import { fleetApi, fleetKeys } from './api';
 import { ChooseTenant } from './choose-tenant';
@@ -52,9 +53,8 @@ function share(part: number, total: number): string {
 
 /** Indicateurs du cahier des charges qui arrivent avec les phases suivantes : annoncés, jamais simulés. */
 const UPCOMING = [
-  { label: 'Machines en ligne et hors ligne', phase: 7 },
-  { label: 'Alertes, stocks critiques et prévisions', phase: 8 },
-  { label: 'Coût moyen par page', phase: 9 },
+  { label: 'Coûts d’impression et coût copie', phase: 9 },
+  { label: 'Rapports PDF et Excel', phase: 10 },
 ];
 
 function SitesChart({ data }: { data: FleetDashboard['bySite'] }) {
@@ -350,6 +350,8 @@ function Dashboard({ tenantId }: { tenantId: string }) {
         </div>
       )}
 
+      {can('alerts:read') && <AlertsOverview tenantId={tenantId} />}
+
       {consumption.data && consumption.data.totals.pages > 0 && (
         <Panel>
           <PanelHeader
@@ -419,8 +421,8 @@ function Dashboard({ tenantId }: { tenantId: string }) {
 
         <Panel>
           <PanelHeader
-            title="Préparation de la collecte"
-            description="Ce que l’agent pourra interroger"
+            title="Collecte SNMP"
+            description="Machines interrogées par les agents de collecte"
           />
           <div className="space-y-6 px-5 pb-6">
             <Meter
@@ -428,20 +430,26 @@ function Dashboard({ tenantId }: { tenantId: string }) {
               total={total}
               label="Adresse réseau renseignée"
             />
-            <div className="flex items-start gap-3 rounded-lg bg-surface-raised p-4">
-              <Network
-                className="mt-0.5 size-5 shrink-0 text-muted-foreground"
-                aria-hidden="true"
-              />
-              <p className="text-[13px] text-muted-foreground">
-                <span className="font-semibold text-foreground">
-                  Connectivité non mesurée pour {data.byConnectivity.UNKNOWN} machine
-                  {data.byConnectivity.UNKNOWN > 1 ? 's' : ''}.
-                </span>{' '}
-                L’état en ligne ou hors ligne sera relevé par l’agent de collecte (phase 7). Aucune
-                valeur n’est simulée d’ici là.
-              </p>
-            </div>
+            <Meter
+              value={data.byConnectivity.ONLINE}
+              total={total}
+              label={`En ligne · ${data.byConnectivity.OFFLINE} hors ligne`}
+            />
+            {data.byConnectivity.UNKNOWN > 0 && (
+              <div className="flex items-start gap-3 rounded-lg bg-surface-raised p-4">
+                <Network
+                  className="mt-0.5 size-5 shrink-0 text-muted-foreground"
+                  aria-hidden="true"
+                />
+                <p className="text-[13px] text-muted-foreground">
+                  <span className="font-semibold text-foreground">
+                    Connectivité non mesurée pour {data.byConnectivity.UNKNOWN} machine
+                    {data.byConnectivity.UNKNOWN > 1 ? 's' : ''}.
+                  </span>{' '}
+                  Aucun agent de collecte ne les a encore interrogées : leur état n’est pas simulé.
+                </p>
+              </div>
+            )}
             {data.byManufacturer.length > 0 && (
               <div>
                 <h3 className="mb-2.5 text-[13px] font-semibold">Fabricants</h3>

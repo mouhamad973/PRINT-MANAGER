@@ -87,29 +87,34 @@ Deux gardes globaux s'appliquent à chaque route, sauf celles marquées `@Public
 
 La matrice des rôles est définie dans le code (`packages/shared-types/src/access.ts`), et non en base : une politique de sécurité modifiable à l'exécution serait une surface d'attaque sans besoin métier identifié. Chaque phase y ajoutera les permissions de ses modules.
 
-| Permission                | Super Admin | Admin client | Resp. impression | Technicien | Gest. stock | Utilisateur |
-| ------------------------- | :---------: | :----------: | :--------------: | :--------: | :---------: | :---------: |
-| `platform:tenants:manage` |     Oui     |              |                  |            |             |             |
-| `platform:audit:read`     |     Oui     |              |                  |            |             |             |
-| `tenant:read`             |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |     Oui     |
-| `users:read`              |     Oui     |     Oui      |       Oui        |            |             |             |
-| `users:manage`            |     Oui     |     Oui      |                  |            |             |             |
-| `audit:read`              |     Oui     |     Oui      |                  |            |             |             |
-| `platform:catalog:manage` |     Oui     |              |                  |            |             |             |
-| `sites:read`              |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |     Oui     |
-| `sites:manage`            |     Oui     |     Oui      |       Oui        |            |             |             |
-| `printers:read`           |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |     Oui     |
-| `printers:manage`         |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
-| `printers:network:manage` |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
-| `printer-models:manage`   |     Oui     |     Oui      |       Oui        |            |             |             |
-| `meters:read`             |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |     Oui     |
-| `meters:manage`           |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
-| `consumption:read`        |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |             |
-| `consumption:manage`      |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
-| `print-jobs:read`         |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |             |
-| `print-jobs:manage`       |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
-| `agents:read`             |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
-| `agents:manage`           |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
+| Permission                  | Super Admin | Admin client | Resp. impression | Technicien | Gest. stock | Utilisateur |
+| --------------------------- | :---------: | :----------: | :--------------: | :--------: | :---------: | :---------: |
+| `platform:tenants:manage`   |     Oui     |              |                  |            |             |             |
+| `platform:audit:read`       |     Oui     |              |                  |            |             |             |
+| `tenant:read`               |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |     Oui     |
+| `users:read`                |     Oui     |     Oui      |       Oui        |            |             |             |
+| `users:manage`              |     Oui     |     Oui      |                  |            |             |             |
+| `audit:read`                |     Oui     |     Oui      |                  |            |             |             |
+| `platform:catalog:manage`   |     Oui     |              |                  |            |             |             |
+| `sites:read`                |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |     Oui     |
+| `sites:manage`              |     Oui     |     Oui      |       Oui        |            |             |             |
+| `printers:read`             |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |     Oui     |
+| `printers:manage`           |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
+| `printers:network:manage`   |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
+| `printer-models:manage`     |     Oui     |     Oui      |       Oui        |            |             |             |
+| `meters:read`               |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |     Oui     |
+| `meters:manage`             |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
+| `consumption:read`          |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |             |
+| `consumption:manage`        |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
+| `print-jobs:read`           |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |             |
+| `print-jobs:manage`         |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
+| `agents:read`               |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
+| `agents:manage`             |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
+| `stocks:read`               |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |             |
+| `stocks:manage`             |     Oui     |     Oui      |       Oui        |            |     Oui     |             |
+| `toner-replacements:manage` |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |             |
+| `alerts:read`               |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |             |
+| `alerts:manage`             |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |             |
 
 Un administrateur client ne peut ni attribuer le rôle Super Administrateur, ni modifier son propre rôle ou statut.
 
@@ -301,6 +306,50 @@ Effets des événements :
 La fiche machine affiche le panneau **État SNMP**. La fiche technique reçoit les OID des compteurs.
 
 **Isolation.** Les cinq tables de la collecte sont sous RLS. Leurs clés étrangères composites (`agent_id`, `tenant_id`) et (`printer_id`, `tenant_id`) empêchent tout rattachement à une autre entreprise.
+
+## Toners, stocks et alertes
+
+**Articles et registre.** Un article (`toner_stocks`) suit une référence de cartouche sur un site, avec un seuil minimum et un délai de réapprovisionnement. Les références sont celles des fiches techniques, comparées sans tenir compte de la casse : une cartouche commune à plusieurs modèles n'a qu'un article par site.
+
+La quantité n'est jamais écrite directement. Elle résulte du registre `stock_movements`, et deux déclencheurs garantissent les invariants :
+
+- `stock_movements_apply` verrouille l'article, calcule le solde après le mouvement et refuse un stock négatif (« Stock insuffisant »). Deux sorties simultanées ne peuvent donc pas vider deux fois le même stock.
+- `stock_movements_immutable` refuse toute modification ou suppression du registre, même au rôle système ; `toner_stocks_quantity_guard` refuse une quantité modifiée hors du registre. Une erreur se corrige par un inventaire.
+
+| Mouvement                    | Signe | Origine                                                    |
+| ---------------------------- | ----- | ---------------------------------------------------------- |
+| Réception                    | +     | Saisie, avec coût unitaire et bon de livraison facultatifs |
+| Sortie                       | −     | Saisie (remise, retour, casse)                             |
+| Inventaire                   | ±     | Quantité comptée : le mouvement est l'écart avec le stock  |
+| Transfert sortant et entrant | − / + | Deux mouvements liés par `transfer_id`                     |
+| Installation                 | −     | Remplacement de toner pris dans le stock                   |
+| Annulation                   | +     | Annulation de ce remplacement                              |
+
+La valeur du stock suit le dernier coût de réception, à défaut le prix du toner.
+
+**Remplacements et rendement réel.** Un remplacement (`toner_replacements`) enregistre le compteur de la machine au moment du remplacement : le compteur noir pour le noir, le compteur couleur pour le cyan, le magenta et le jaune. L'écart avec le remplacement précédent du même canal donne le **rendement réel** de la cartouche retirée, comparé au rendement constructeur. Un remplacement erroné est annulé, pas supprimé, et sa cartouche revient dans son stock.
+
+**Historique des niveaux SNMP.** À chaque état reçu d'un agent, le niveau de chaque cartouche entre dans `supply_level_readings` s'il a changé ou si le dernier point date de plus de six heures. Cet historique sert à deux choses :
+
+- **Épuisement prévu** de chaque cartouche (fiche machine) : pente par moindres carrés des niveaux depuis la dernière remontée, sur 60 jours.
+- **Remplacements à confirmer** : une remontée d'au moins 30 points jusqu'à 70 % ou plus, sans remplacement enregistré à moins de 3 jours. Rien n'est enregistré sans un utilisateur.
+
+**Prévisions de rupture.** Le rythme de consommation d'un article vient du moteur CMJN : sur 90 jours, la consommation estimée (pages relevées, aplat, calibration) des machines du site équipées de la référence, divisée par la masse de toner d'une cartouche. Sans estimation, le rythme vient de l'historique des installations depuis ce stock. On en tire :
+
+- la couverture en jours et la date de rupture ;
+- une quantité à commander, qui couvre le délai de réapprovisionnement et 30 jours, et au moins le seuil plus un.
+
+**Alertes.** Une alerte (`alerts`) correspond à une condition, identifiée par une clé de déduplication. Un index unique partiel garantit une seule alerte active par condition : tant que la condition dure, l'alerte se rafraîchit (`INSERT … ON CONFLICT`) ; dès qu'elle disparaît, l'alerte se résout d'elle-même. Un utilisateur peut aussi la prendre en compte ou la clôturer.
+
+| Alerte               | Gravité       | Condition                                                  | Évaluée                                 |
+| -------------------- | ------------- | ---------------------------------------------------------- | --------------------------------------- |
+| Rupture de stock     | Critique      | Seuil positif et stock nul                                 | À chaque mouvement, dans sa transaction |
+| Stock sous le seuil  | Avertissement | Stock au seuil ou en dessous                               | À chaque mouvement, dans sa transaction |
+| Rupture prévue       | Avertissement | Couverture plus courte que le délai de réapprovisionnement | Toutes les heures, ou à la demande      |
+| Toner bientôt épuisé | Avertissement | Niveau SNMP de 10 % ou moins                               | À chaque état reçu d'un agent           |
+| Toner épuisé         | Critique      | Niveau SNMP de 2 % ou moins                                | À chaque état reçu d'un agent           |
+
+Les alertes de niveau se résolvent aussi quand un remplacement est enregistré. L'évaluation horaire des ruptures prévues tourne dans l'API ; un verrou Redis la confie à une seule instance.
 
 ## Origine des données
 

@@ -5,4 +5,5 @@ export * from './env.js';
 export * from './fleet.js';
 export * from './meters.js';
 export * from './print-jobs.js';
+export * from './stocks.js';
 export * from './system.js';

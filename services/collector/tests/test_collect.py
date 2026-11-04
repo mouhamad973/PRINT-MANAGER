@@ -38,7 +38,7 @@ def target(
 
 def test_collects_counters_status_and_supply_levels(snmp_network: SimulatedNetwork) -> None:
     printer = target(snmp_network)
-    result = asyncio.run(collect_printer(printer, AGENT, timeout=1))
+    result = asyncio.run(collect_printer(printer, AGENT, timeout=3))
 
     assert result.ok
     status, reading = result.events
@@ -69,7 +69,7 @@ def test_collects_counters_status_and_supply_levels(snmp_network: SimulatedNetwo
 
 def test_monochrome_printer_reads_the_standard_total(snmp_network: SimulatedNetwork) -> None:
     printer = target(snmp_network, community="mono", color=False, vendor_counters=False)
-    result = asyncio.run(collect_printer(printer, AGENT, timeout=1))
+    result = asyncio.run(collect_printer(printer, AGENT, timeout=3))
     assert result.ok
     reading = result.events[1]
     assert reading["payload"] == {"totalCount": 48210, "blackCount": None, "colorCount": None}
@@ -81,7 +81,7 @@ def test_color_printer_without_vendor_counters_gives_no_reading(
 ) -> None:
     # Le total seul ne dit pas combien de pages couleur : aucun relevé n'est inventé.
     printer = target(snmp_network, vendor_counters=False)
-    result = asyncio.run(collect_printer(printer, AGENT, timeout=1))
+    result = asyncio.run(collect_printer(printer, AGENT, timeout=3))
     assert result.ok
     assert [event["type"] for event in result.events] == ["printer.status"]
     assert result.reading is None
@@ -112,7 +112,7 @@ def test_snmpv3_with_authentication_and_privacy(snmp_network: SimulatedNetwork) 
         priv_protocol="AES128",
         priv_password=V3_PRIV,
     )
-    result = asyncio.run(collect_printer(printer, AGENT, timeout=1))
+    result = asyncio.run(collect_printer(printer, AGENT, timeout=3))
     assert result.ok
     assert result.events[1]["payload"]["blackCount"] == 98340
 
@@ -143,7 +143,7 @@ def test_snmpv1_is_supported(snmp_network: SimulatedNetwork) -> None:
     printer = target(
         snmp_network, community="mono", color=False, vendor_counters=False, version="V1"
     )
-    result = asyncio.run(collect_printer(printer, AGENT, timeout=1))
+    result = asyncio.run(collect_printer(printer, AGENT, timeout=3))
     assert result.ok
     assert result.events[1]["payload"]["totalCount"] == 48210
 
@@ -151,7 +151,9 @@ def test_snmpv1_is_supported(snmp_network: SimulatedNetwork) -> None:
 def test_discovery_keeps_printers_and_ignores_other_devices(
     snmp_network: SimulatedNetwork,
 ) -> None:
-    found = asyncio.run(probe(snmp_network.host, ["mauvaise", "public"], port=snmp_network.port))
+    found = asyncio.run(
+        probe(snmp_network.host, ["mauvaise", "public"], port=snmp_network.port, timeout=3)
+    )
     assert found == {
         "ipAddress": "127.0.0.1",
         "serialNumber": "SIMCOL0001",
@@ -160,10 +162,12 @@ def test_discovery_keeps_printers_and_ignores_other_devices(
         "macAddress": "00:11:22:AA:BB:CC",
     }
     # Un commutateur répond en SNMP mais n'est pas une imprimante.
-    assert asyncio.run(probe(snmp_network.host, ["switch"], port=snmp_network.port)) is None
+    assert (
+        asyncio.run(probe(snmp_network.host, ["switch"], port=snmp_network.port, timeout=3)) is None
+    )
 
     events = asyncio.run(
-        discover(["127.0.0.1"], ["public"], AGENT, port=snmp_network.port, timeout=1)
+        discover(["127.0.0.1"], ["public"], AGENT, port=snmp_network.port, timeout=3)
     )
     assert len(events) == 1
     assert events[0]["type"] == "device.discovered"

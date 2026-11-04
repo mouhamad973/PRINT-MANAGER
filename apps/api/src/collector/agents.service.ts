@@ -1,6 +1,7 @@
 import { Prisma, withTenant, type PrismaClient } from '@arksen/database';
 import {
   AGENT_ONLINE_WINDOW_MS,
+  CMYK_CHANNELS,
   ENROLLMENT_CODE_TTL_MS,
   type AgentEnrollmentCode,
   type AgentStatus,
@@ -32,6 +33,7 @@ import { AuditService } from '../audit/audit.service.js';
 import type { Principal, RequestContext } from '../auth/principal.js';
 import { isUniqueViolation } from '../common/changes.js';
 import { PRISMA_APP } from '../database/database.module.js';
+import { levelTrend } from '../stocks/forecast.js';
 import { formatEnrollmentCode, generateEnrollmentCode, hashSecret } from './agent-credentials.js';
 
 const agentInclude = { site: { select: { id: true, name: true } } } as const;
@@ -378,6 +380,28 @@ export class AgentsService {
         include: { agent: { select: { id: true, name: true } } },
       });
       if (!row) return null;
+      // Épuisement prévu : tendance des niveaux des 60 derniers jours, depuis le dernier remplacement.
+      const history = await tx.supplyLevelReading.findMany({
+        where: { printerId, observedAt: { gte: new Date(Date.now() - 60 * DAY_MS) } },
+        orderBy: { observedAt: 'asc' },
+      });
+      const now = new Date();
+      const forecasts = CMYK_CHANNELS.flatMap((channel) => {
+        const points = history
+          .filter((point) => point.channel === channel)
+          .map((point) => ({ at: point.observedAt, level: Number(point.levelPercent) }));
+        const current = points.at(-1);
+        if (!current) return [];
+        const trend = levelTrend(points, now);
+        return [
+          {
+            channel,
+            levelPercent: current.level,
+            percentPerDay: trend.percentPerDay,
+            emptyAt: trend.emptyAt?.toISOString() ?? null,
+          },
+        ];
+      });
       return {
         printerId: row.printerId,
         agent: row.agent,
@@ -391,6 +415,7 @@ export class AgentsService {
         totalCount: row.totalCount,
         serialNumber: row.serialNumber,
         description: row.description,
+        forecasts,
       };
     });
   }

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AlertsModule } from '../alerts/alerts.module.js';
 import { AuditModule } from '../audit/audit.module.js';
 import { SECRET_BOX, SecretBox } from '../common/secret-box.js';
 import { APP_CONFIG, type AppConfig } from '../config/app-config.js';
@@ -10,7 +11,7 @@ import { AgentsService } from './agents.service.js';
 
 /** Collecte SNMP (Phase 7) : administration des agents et protocole de synchronisation. */
 @Module({
-  imports: [AuditModule],
+  imports: [AuditModule, AlertsModule],
   controllers: [AgentsController, AgentApiController],
   providers: [
     AgentsService,

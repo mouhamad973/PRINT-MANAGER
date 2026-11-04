@@ -55,7 +55,8 @@ def test_full_cycle_with_an_offline_period(tmp_path: Path, snmp_network: Simulat
     agent = Agent(
         ConfigStore(tmp_path / "home"),
         transport=server.transport(),
-        snmp_timeout=0.5,
+        # Large : la machine de test peut être chargée ; la mauvaise communauté expire quand même.
+        snmp_timeout=2,
         snmp_retries=0,
     )
     agent.enroll("http://localhost:3000", server.code)

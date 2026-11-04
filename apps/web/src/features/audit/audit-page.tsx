@@ -66,6 +66,14 @@ export const ACTION_LABELS: Record<string, string> = {
   'agent.enrolled': 'Agent de collecte enregistré',
   'agent.revoked': 'Agent de collecte révoqué',
   'discovered_device.updated': 'Équipement découvert associé',
+  'stock.created': 'Référence suivie en stock',
+  'stock.updated': 'Seuils de stock modifiés',
+  'stock.movement_created': 'Mouvement de stock',
+  'stock.transferred': 'Transfert de stock',
+  'toner.replaced': 'Toner remplacé',
+  'toner.replacement_cancelled': 'Remplacement de toner annulé',
+  'alert.acknowledged': 'Alerte prise en compte',
+  'alert.resolved': 'Alerte clôturée',
 };
 
 function describeTarget(entry: AuditLogEntry): string {

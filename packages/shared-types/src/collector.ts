@@ -1,3 +1,4 @@
+import type { SupplyForecast } from './stocks.js';
 import type {
   ColorMode,
   SnmpAuthProtocol,
@@ -199,6 +200,8 @@ export interface PrinterSnmpState {
   totalCount: number | null;
   serialNumber: string | null;
   description: string | null;
+  /** Épuisement prévu de chaque cartouche, d'après l'historique de ses niveaux. */
+  forecasts: SupplyForecast[];
 }
 
 // =====================================================================

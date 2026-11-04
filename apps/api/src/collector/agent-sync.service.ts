@@ -6,6 +6,7 @@ import {
   type AgentEnrollment,
   type AgentEventsResult,
   type AgentPrinterTarget,
+  type CmykChannel,
 } from '@arksen/shared-types';
 import {
   agentEventSchema,
@@ -14,6 +15,7 @@ import {
   type AgentEventsBatchInput,
 } from '@arksen/validation';
 import { HttpException, HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
+import { AlertsService } from '../alerts/alerts.service.js';
 import { AuditService } from '../audit/audit.service.js';
 import { isUniqueViolation } from '../common/changes.js';
 import { SECRET_BOX, SecretBox } from '../common/secret-box.js';
@@ -23,6 +25,9 @@ import type { AgentPrincipal } from './agent.guard.js';
 
 /** Compteur total d'impressions de la Printer-MIB (RFC 3805) : prtMarkerLifeCount.1.1. */
 export const PRINTER_MIB_TOTAL_OID = '1.3.6.1.2.1.43.10.2.1.4.1.1';
+
+/** Un point d'historique de niveau inchangé n'est gardé que toutes les six heures. */
+const LEVEL_KEEP_MS = 6 * 60 * 60 * 1000;
 
 /** Un événement daté de plus de 5 minutes dans le futur trahit une horloge déréglée. */
 const CLOCK_SKEW_MS = 5 * 60 * 1000;
@@ -45,6 +50,7 @@ export class AgentSyncService {
     @Inject(PRISMA_SYSTEM) private readonly systemPrisma: PrismaClient,
     @Inject(SECRET_BOX) private readonly secrets: SecretBox,
     private readonly audit: AuditService,
+    private readonly alerts: AlertsService,
   ) {}
 
   /**
@@ -318,13 +324,25 @@ export class AgentSyncService {
 
       case 'printer.status': {
         const printer = await this.findPrinter(tx, agent, event.printerId);
+        const payload = event.payload;
+        // Niveaux des cartouches : historique, y compris pour un état reçu en retard.
+        const levels = new Map<CmykChannel, number>();
+        for (const supply of payload.supplies) {
+          if (supply.channel && supply.levelPercent !== null && !levels.has(supply.channel)) {
+            levels.set(supply.channel, supply.levelPercent);
+          }
+        }
+        if (payload.reachable) {
+          for (const [channel, level] of levels) {
+            await this.recordLevel(tx, agent.tenantId, printer.id, channel, level, occurredAt);
+          }
+        }
         const current = await tx.printerState.findUnique({
           where: { printerId: printer.id },
           select: { observedAt: true },
         });
         // Un état reçu en retard (reprise après coupure) ne remplace pas un état plus récent.
         if (current && current.observedAt > occurredAt) return;
-        const payload = event.payload;
         const state = {
           agentId: agent.id,
           eventId: event.id,
@@ -351,6 +369,11 @@ export class AgentSyncService {
             ...(payload.reachable ? { lastSeenAt: occurredAt } : {}),
           },
         });
+        if (payload.reachable) {
+          for (const [channel, level] of levels) {
+            await this.alerts.evaluateTonerLevel(tx, agent.tenantId, printer, channel, level);
+          }
+        }
         return;
       }
 
@@ -418,12 +441,42 @@ export class AgentSyncService {
         tenantId: agent.tenantId,
         ...(agent.siteId ? { siteId: agent.siteId } : {}),
       },
-      select: { id: true, model: { select: { colorMode: true } } },
+      select: { id: true, name: true, model: { select: { colorMode: true } } },
     });
     if (!printer) {
       throw new Rejection('Machine inconnue pour cet agent.');
     }
     return printer;
+  }
+
+  /**
+   * Point d'historique du niveau d'une cartouche, gardé seulement s'il change ou si le dernier
+   * date de plus de six heures : la tendance reste lisible sans stocker chaque collecte.
+   */
+  private async recordLevel(
+    tx: TransactionClient,
+    tenantId: string,
+    printerId: string,
+    channel: CmykChannel,
+    level: number,
+    observedAt: Date,
+  ) {
+    const last = await tx.supplyLevelReading.findFirst({
+      where: { printerId, channel, observedAt: { lte: observedAt } },
+      orderBy: { observedAt: 'desc' },
+      select: { observedAt: true, levelPercent: true },
+    });
+    if (
+      last &&
+      Number(last.levelPercent) === level &&
+      observedAt.getTime() - last.observedAt.getTime() < LEVEL_KEEP_MS
+    ) {
+      return;
+    }
+    await tx.supplyLevelReading.createMany({
+      data: [{ printerId, tenantId, channel, observedAt, levelPercent: level }],
+      skipDuplicates: true,
+    });
   }
 
   private throttleEnrollment(key: string) {

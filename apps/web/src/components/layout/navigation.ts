@@ -62,7 +62,7 @@ export const NAVIGATION: NavGroup[] = [
         permission: 'printers:read',
       },
       { label: 'État de la plateforme', icon: Activity, href: '/' },
-      { label: 'Alertes', icon: AlertTriangle, phase: 8 },
+      { label: 'Alertes', icon: AlertTriangle, href: '/alertes', permission: 'alerts:read' },
     ],
   },
   {
@@ -109,8 +109,8 @@ export const NAVIGATION: NavGroup[] = [
   {
     label: 'Stocks',
     items: [
-      { label: 'Toners', icon: Blocks, phase: 8 },
-      { label: 'Stocks', icon: Package, phase: 8 },
+      { label: 'Toners', icon: Blocks, href: '/toners', permission: 'stocks:read' },
+      { label: 'Stocks', icon: Package, href: '/stocks', permission: 'stocks:read' },
       { label: 'Papier', icon: ScrollText, phase: 9 },
     ],
   },

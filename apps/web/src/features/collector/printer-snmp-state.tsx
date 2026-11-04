@@ -4,6 +4,7 @@ import {
   DEVICE_STATUS_LABELS,
   PRINTER_ACTIVITY_LABELS,
   PRINTER_ALERT_LABELS,
+  type SupplyForecast,
   type SupplyLevel,
 } from '@arksen/shared-types';
 import { useQuery } from '@tanstack/react-query';
@@ -12,7 +13,7 @@ import { Panel, PanelHeader } from '@/components/ui/panel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { INK_CLASSES } from '@/features/consumption/consumption-ui';
 import { numberFormat } from '@/features/meters/meters-ui';
-import { formatDateTime } from '@/lib/format';
+import { formatDate, formatDateTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { collectorApi, collectorKeys } from './api';
 
@@ -21,12 +22,22 @@ const percent = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
 /** Alertes qui empêchent d'imprimer : en rouge ; les autres en orange. */
 const BLOCKING = new Set(['noPaper', 'noToner', 'doorOpen', 'jammed', 'offline', 'outputFull']);
 
-function SupplyRow({ supply }: { supply: SupplyLevel }) {
+function SupplyRow({ supply, forecast }: { supply: SupplyLevel; forecast?: SupplyForecast }) {
   const level = supply.levelPercent;
   return (
     <li className="grid grid-cols-[minmax(0,1fr)_7rem_3.5rem] items-center gap-3 py-2 text-[13px]">
-      <span className="truncate" title={supply.description}>
-        {supply.description}
+      <span className="min-w-0">
+        <span className="block truncate" title={supply.description}>
+          {supply.description}
+        </span>
+        {forecast?.emptyAt && (
+          <span
+            className="block text-xs text-muted-foreground"
+            title={`Tendance des niveaux depuis le dernier remplacement : ${percent.format(forecast.percentPerDay ?? 0)} point(s) par jour`}
+          >
+            Épuisement prévu vers le {formatDate(forecast.emptyAt)}
+          </span>
+        )}
       </span>
       <span className="h-2 overflow-hidden rounded-full bg-muted" aria-hidden="true">
         {level !== null && (
@@ -150,7 +161,17 @@ export function PrinterSnmpState({ tenantId, printerId }: { tenantId: string; pr
             ) : (
               <ul className="mt-1 divide-y divide-border">
                 {state.supplies.map((supply) => (
-                  <SupplyRow key={supply.index} supply={supply} />
+                  <SupplyRow
+                    key={supply.index}
+                    supply={supply}
+                    // La prévision suit la première cartouche de chaque canal, comme l'historique.
+                    forecast={
+                      supply.channel &&
+                      state.supplies.find((item) => item.channel === supply.channel) === supply
+                        ? state.forecasts.find((item) => item.channel === supply.channel)
+                        : undefined
+                    }
+                  />
                 ))}
               </ul>
             )}
