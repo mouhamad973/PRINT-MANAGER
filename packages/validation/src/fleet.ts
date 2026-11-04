@@ -10,6 +10,7 @@ import {
 } from '@arksen/shared-types';
 import { z } from 'zod';
 import { listQuerySchema, nameSchema, optionalText } from './access.js';
+import { optionalOidSchema } from './collector.js';
 
 /** Paramètre d'URL facultatif : une valeur vide équivaut à son absence. */
 const optionalParam = <T extends z.ZodType>(schema: T) =>
@@ -79,12 +80,15 @@ const printerModelFields = z.object({
   duplex: z.boolean(),
   monthlyDutyCycle: optionalInt(1, 10_000_000),
   recommendedVolume: optionalInt(1, 10_000_000),
+  /** Compteurs propres au constructeur, lus par l'agent de collecte (le total suit la Printer-MIB). */
+  snmpBlackCounterOid: optionalOidSchema,
+  snmpColorCounterOid: optionalOidSchema,
   notes: optionalText(1000),
 });
 
-/** Une machine noir et blanc n'a pas de vitesse couleur. */
+/** Une machine noir et blanc n'a ni vitesse ni compteur couleur. */
 function checkColorSpeed(
-  value: { colorMode?: string; speedColorPpm?: number | null },
+  value: { colorMode?: string; speedColorPpm?: number | null; snmpColorCounterOid?: string | null },
   context: z.RefinementCtx,
 ) {
   if (value.colorMode === 'MONOCHROME' && value.speedColorPpm) {
@@ -92,6 +96,13 @@ function checkColorSpeed(
       code: 'custom',
       path: ['speedColorPpm'],
       message: 'Un modèle noir et blanc n’a pas de vitesse couleur.',
+    });
+  }
+  if (value.colorMode === 'MONOCHROME' && value.snmpColorCounterOid) {
+    context.addIssue({
+      code: 'custom',
+      path: ['snmpColorCounterOid'],
+      message: 'Un modèle noir et blanc n’a pas de compteur couleur.',
     });
   }
 }

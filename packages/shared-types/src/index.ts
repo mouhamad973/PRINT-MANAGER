@@ -1,4 +1,5 @@
 export * from './access.js';
+export * from './collector.js';
 export * from './consumption.js';
 export * from './domain.js';
 export * from './fleet.js';

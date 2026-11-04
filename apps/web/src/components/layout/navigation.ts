@@ -18,6 +18,7 @@ import {
   Package,
   Palette,
   Printer,
+  RadioTower,
   Receipt,
   ScrollText,
   Settings,
@@ -46,7 +47,10 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-/** Les 20 modules fonctionnels du cahier des charges, plus les pages du socle et les fiches techniques. */
+/**
+ * Les 20 modules fonctionnels du cahier des charges, plus les pages du socle, les fiches techniques
+ * et les agents de collecte (agent Windows, § 8 du cahier des charges).
+ */
 export const NAVIGATION: NavGroup[] = [
   {
     label: 'Supervision',
@@ -79,6 +83,12 @@ export const NAVIGATION: NavGroup[] = [
         permission: 'printers:read',
       },
       { label: 'Compteurs', icon: Gauge, href: '/meters', permission: 'meters:read' },
+      {
+        label: 'Agents de collecte',
+        icon: RadioTower,
+        href: '/collecte',
+        permission: 'agents:read',
+      },
       // Registre des travaux d'impression et de leurs coûts réels (phase 9).
       { label: 'Impressions', icon: ClipboardList, phase: 9 },
     ],

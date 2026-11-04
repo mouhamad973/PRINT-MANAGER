@@ -23,6 +23,7 @@ import { FormError } from '@/components/ui/field';
 import { Panel, PanelHeader } from '@/components/ui/panel';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PrinterSnmpState } from '@/features/collector/printer-snmp-state';
 import { PrinterConsumption } from '@/features/consumption/printer-consumption';
 import { PrinterMeters } from '@/features/meters/printer-meters';
 import { useSession } from '@/features/session/session-provider';
@@ -236,10 +237,12 @@ function PrinterDetailView({ tenantId, printerId }: { tenantId: string; printerI
         />
       )}
 
+      <PrinterSnmpState tenantId={tenantId} printerId={printerId} />
+
       <Panel aria-labelledby="network-title">
         <PanelHeader
           title={<span id="network-title">Réseau et SNMP</span>}
-          description="Utilisés par l’agent de collecte pour interroger la machine (phase 7)."
+          description="Utilisés par l’agent de collecte pour interroger la machine."
           actions={<ConnectivityBadge connectivity={data.connectivity} />}
         />
         <div className="px-5 pb-6">

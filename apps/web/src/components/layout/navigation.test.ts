@@ -24,8 +24,8 @@ describe('NAVIGATION', () => {
     }
   });
 
-  it('couvre les 20 modules du cahier des charges, les 3 pages du socle et les fiches techniques', () => {
-    expect(items).toHaveLength(24);
+  it('couvre les 20 modules du cahier des charges, les 3 pages du socle, les fiches techniques et les agents de collecte', () => {
+    expect(items).toHaveLength(25);
     expect(new Set(items.map((item) => item.label)).size).toBe(items.length);
   });
 });

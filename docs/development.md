@@ -58,9 +58,28 @@ L'API crée le premier Super Administrateur à son démarrage, à partir de `SUP
 
 ## Tests de bout en bout
 
-`apps/api/test/e2e` contient des tests qui visent la stack Docker démarrée (`isolation.e2e.test.ts` pour l'authentification, `fleet.e2e.test.ts` pour le parc machines, `meters.e2e.test.ts` pour les compteurs, `consumption.e2e.test.ts` pour le moteur CMJN, `print-jobs.e2e.test.ts` pour l'analyse PDF), à travers le relais du frontend comme un vrai navigateur. Ils vérifient la connexion, les rôles, l'isolation entre entreprises au niveau de l'API et de PostgreSQL, la désactivation des comptes, la suspension des entreprises et la limitation des tentatives.
+`apps/api/test/e2e` contient des tests qui visent la stack Docker démarrée (`isolation.e2e.test.ts` pour l'authentification, `fleet.e2e.test.ts` pour le parc machines, `meters.e2e.test.ts` pour les compteurs, `consumption.e2e.test.ts` pour le moteur CMJN, `print-jobs.e2e.test.ts` pour l'analyse PDF, `collector.e2e.test.ts` pour le protocole des agents de collecte), à travers le relais du frontend comme un vrai navigateur. Ils vérifient la connexion, les rôles, l'isolation entre entreprises au niveau de l'API et de PostgreSQL, la désactivation des comptes, la suspension des entreprises et la limitation des tentatives.
 
 Ils ne font pas partie de `pnpm test`, car ils écrivent de vraies données. Les entreprises qu'ils créent ont un identifiant commençant par `e2e-`. Ils lisent `SUPER_ADMIN_*`, `DATABASE_APP_URL` et `DATABASE_SYSTEM_URL` dans `.env`.
+
+## Agent de collecte
+
+`pnpm --filter @arksen/collector test` lance les tests de l'agent Windows. Ils démarrent un répondeur SNMP sur la boucle locale (snmpsim, dépendance de développement installée avec l'agent) et l'interrogent comme une vraie imprimante. Ses jeux de données se régénèrent avec `python tests/snmpdata/generate.py`.
+
+Pour essayer l'agent contre la stack locale :
+
+1. Déclarez un agent dans **Agents de collecte** pour obtenir un code.
+2. Depuis `services/collector`, enregistrez l'agent puis lancez-le, avec un dossier de données jetable :
+
+   ```bash
+   .venv/Scripts/python -m arksen_collector --home ./.agent-dev enroll --server http://localhost:3000 --code <code>
+   ```
+
+   ```bash
+   .venv/Scripts/python -m arksen_collector --home ./.agent-dev run
+   ```
+
+Le paquet Windows se construit avec `packaging/build.ps1` (voir [collector.md](collector.md)).
 
 ## Ajouter un module
 

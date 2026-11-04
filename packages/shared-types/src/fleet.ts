@@ -92,6 +92,9 @@ export interface PrinterModel {
   duplex: boolean;
   monthlyDutyCycle: number | null;
   recommendedVolume: number | null;
+  /** OID SNMP des compteurs noir et couleur, propres au constructeur. */
+  snmpBlackCounterOid: string | null;
+  snmpColorCounterOid: string | null;
   notes: string | null;
   printerCount: number;
   createdAt: string;

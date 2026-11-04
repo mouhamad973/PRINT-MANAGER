@@ -44,6 +44,10 @@ export const PERMISSIONS = [
   'print-jobs:read',
   /** Importer et analyser des fichiers PDF. */
   'print-jobs:manage',
+  /** Consulter les agents de collecte, leurs synchronisations et les équipements découverts. */
+  'agents:read',
+  /** Enregistrer, renouveler et révoquer les agents ; associer les équipements découverts. */
+  'agents:manage',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -64,6 +68,8 @@ const FLEET_MANAGEMENT: readonly Permission[] = [
   'consumption:manage',
   'print-jobs:read',
   'print-jobs:manage',
+  'agents:read',
+  'agents:manage',
 ];
 
 export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
@@ -79,6 +85,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
     'consumption:manage',
     'print-jobs:read',
     'print-jobs:manage',
+    'agents:read',
+    'agents:manage',
   ],
   STOCK_MANAGER: [...TENANT_BASE, 'consumption:read', 'print-jobs:read'],
   USER: TENANT_BASE,
@@ -99,6 +107,8 @@ export const PERMISSION_LABELS: Partial<Record<Permission, string>> = {
   'consumption:manage': 'Calibrer et saisir les consommations réelles',
   'print-jobs:read': 'Consulter les analyses PDF',
   'print-jobs:manage': 'Analyser des fichiers PDF',
+  'agents:read': 'Consulter les agents de collecte',
+  'agents:manage': 'Enregistrer et révoquer les agents de collecte',
   'users:read': 'Voir les utilisateurs',
   'users:manage': 'Gérer les utilisateurs',
   'audit:read': 'Consulter le journal d’audit',

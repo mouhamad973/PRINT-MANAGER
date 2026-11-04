@@ -35,6 +35,8 @@ function toValues(model: PrinterModel | null): Values {
     duplex: model?.duplex ?? true,
     monthlyDutyCycle: model?.monthlyDutyCycle ?? '',
     recommendedVolume: model?.recommendedVolume ?? '',
+    snmpBlackCounterOid: model?.snmpBlackCounterOid ?? '',
+    snmpColorCounterOid: model?.snmpColorCounterOid ?? '',
     notes: model?.notes ?? '',
   };
 }
@@ -71,7 +73,10 @@ export function ModelDialog({ open, onOpenChange, model, scopeLabel, onSubmit }:
   }, [open, model, reset]);
 
   useEffect(() => {
-    if (monochrome) setValue('speedColorPpm', '');
+    if (monochrome) {
+      setValue('speedColorPpm', '');
+      setValue('snmpColorCounterOid', '');
+    }
   }, [monochrome, setValue]);
 
   async function submit(values: PrinterModelCreateInput) {
@@ -206,6 +211,41 @@ export function ModelDialog({ open, onOpenChange, model, scopeLabel, onSubmit }:
             />
           </Field>
         </div>
+        <fieldset className="grid gap-4 sm:grid-cols-2">
+          <legend className="mb-1 text-[13px] text-muted-foreground sm:col-span-2">
+            Compteurs SNMP du constructeur, lus par l’agent de collecte. Le compteur total suit la
+            norme Printer-MIB ; le noir et la couleur sont propres à chaque constructeur.
+          </legend>
+          <Field
+            id="model-snmpBlackCounterOid"
+            label="OID du compteur noir"
+            hint="Facultatif pour un modèle noir et blanc"
+            error={errors.snmpBlackCounterOid?.message}
+          >
+            <Input
+              className="font-mono"
+              placeholder="1.3.6.1.4.1…"
+              {...field('snmpBlackCounterOid')}
+              {...register('snmpBlackCounterOid')}
+            />
+          </Field>
+          <Field
+            id="model-snmpColorCounterOid"
+            label="OID du compteur couleur"
+            hint={
+              monochrome ? 'Sans objet en noir et blanc' : 'Requis pour relever un modèle couleur'
+            }
+            error={errors.snmpColorCounterOid?.message}
+          >
+            <Input
+              className="font-mono"
+              placeholder="1.3.6.1.4.1…"
+              disabled={monochrome}
+              {...field('snmpColorCounterOid')}
+              {...register('snmpColorCounterOid')}
+            />
+          </Field>
+        </fieldset>
         <Field id="model-notes" label="Notes" error={errors.notes?.message}>
           <Textarea {...field('notes')} {...register('notes')} />
         </Field>

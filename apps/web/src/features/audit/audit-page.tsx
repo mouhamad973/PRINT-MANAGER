@@ -60,6 +60,12 @@ export const ACTION_LABELS: Record<string, string> = {
   'print_job.analyzed': 'Fichier PDF analysé',
   'print_job.updated': 'Analyse PDF modifiée',
   'print_job.deleted': 'Analyse PDF supprimée',
+  'agent.created': 'Agent de collecte déclaré',
+  'agent.updated': 'Agent de collecte modifié',
+  'agent.code_renewed': 'Code d’enregistrement renouvelé',
+  'agent.enrolled': 'Agent de collecte enregistré',
+  'agent.revoked': 'Agent de collecte révoqué',
+  'discovered_device.updated': 'Équipement découvert associé',
 };
 
 function describeTarget(entry: AuditLogEntry): string {

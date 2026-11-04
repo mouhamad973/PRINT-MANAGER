@@ -57,6 +57,11 @@ model Tenant {
   measurements       ConsumptionMeasurement[]
   printJobs          PrintJob[]
   printJobPages      PrintJobPage[]
+  collectorAgents    CollectorAgent[]
+  agentEvents        AgentEvent[]
+  agentSyncLogs      AgentSyncLog[]
+  printerStates      PrinterState[]
+  discoveredDevices  DiscoveredDevice[]
 
   @@map("tenants")
 }
@@ -189,8 +194,9 @@ model Site {
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  tenant   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   printers Printer[]
+  agents   CollectorAgent[]
 
   @@unique([tenantId, name])
   /// Cible des clés étrangères composites : une machine ne peut pas pointer vers le site d'une autre entreprise.
@@ -220,21 +226,24 @@ enum PaperFormat {
 /// `tenantId` nul : catalogue Arksen, visible par toutes les entreprises et modifiable par la plateforme seule.
 /// `tenantId` renseigné : modèle propre à une entreprise.
 model PrinterModel {
-  id                String          @id @default(uuid(7)) @db.Uuid
-  tenantId          String?         @map("tenant_id") @db.Uuid
-  manufacturer      String
-  name              String
-  colorMode         ColorMode       @map("color_mode")
-  technology        PrintTechnology @default(LASER)
-  maxFormat         PaperFormat     @default(A4) @map("max_format")
-  speedMonoPpm      Int?            @map("speed_mono_ppm")
-  speedColorPpm     Int?            @map("speed_color_ppm")
-  duplex            Boolean         @default(true)
-  monthlyDutyCycle  Int?            @map("monthly_duty_cycle")
-  recommendedVolume Int?            @map("recommended_volume")
-  notes             String?
-  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id                  String          @id @default(uuid(7)) @db.Uuid
+  tenantId            String?         @map("tenant_id") @db.Uuid
+  manufacturer        String
+  name                String
+  colorMode           ColorMode       @map("color_mode")
+  technology          PrintTechnology @default(LASER)
+  maxFormat           PaperFormat     @default(A4) @map("max_format")
+  speedMonoPpm        Int?            @map("speed_mono_ppm")
+  speedColorPpm       Int?            @map("speed_color_ppm")
+  duplex              Boolean         @default(true)
+  monthlyDutyCycle    Int?            @map("monthly_duty_cycle")
+  recommendedVolume   Int?            @map("recommended_volume")
+  /// OID SNMP des compteurs noir et couleur, propres au constructeur (Phase 7).
+  snmpBlackCounterOid String?         @map("snmp_black_counter_oid")
+  snmpColorCounterOid String?         @map("snmp_color_counter_oid")
+  notes               String?
+  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   tenant   Tenant?      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   printers Printer[]
@@ -286,6 +295,8 @@ model Printer {
   calibration   CalibrationProfile?
   measurements  ConsumptionMeasurement[]
   printJobs     PrintJob[]
+  snmpState     PrinterState?
+  discoveries   DiscoveredDevice[]
 
   @@unique([tenantId, serialNumber])
   @@unique([id, tenantId])
@@ -557,4 +568,152 @@ model PrintJobPage {
 
   @@id([jobId, number])
   @@map("print_job_pages")
+}
+
+// =====================================================================
+// Phase 7 : agents de collecte SNMP
+// =====================================================================
+
+enum AgentStatus {
+  PENDING
+  ACTIVE
+  REVOKED
+}
+
+/// Agent Windows de collecte. Il s'enregistre avec un code à usage unique, puis s'authentifie par
+/// un jeton secret dont seule l'empreinte SHA-256 est conservée.
+model CollectorAgent {
+  id                  String      @id @default(uuid(7)) @db.Uuid
+  tenantId            String      @map("tenant_id") @db.Uuid
+  /// Site couvert ; nul : toutes les machines de l'entreprise.
+  siteId              String?     @map("site_id") @db.Uuid
+  name                String
+  status              AgentStatus @default(PENDING)
+  enrollmentCodeHash  String?     @unique @map("enrollment_code_hash")
+  enrollmentExpiresAt DateTime?   @map("enrollment_expires_at") @db.Timestamptz(3)
+  tokenHash           String?     @unique @map("token_hash")
+  hostname            String?
+  version             String?
+  platform            String?
+  lastSeenAt          DateTime?   @map("last_seen_at") @db.Timestamptz(3)
+  lastSyncAt          DateTime?   @map("last_sync_at") @db.Timestamptz(3)
+  lastIp              String?     @map("last_ip")
+  enrolledAt          DateTime?   @map("enrolled_at") @db.Timestamptz(3)
+  revokedAt           DateTime?   @map("revoked_at") @db.Timestamptz(3)
+  createdById         String?     @map("created_by_id")
+  createdByEmail      String?     @map("created_by_email")
+  createdAt           DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant      Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  site        Site?              @relation(fields: [siteId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  events      AgentEvent[]
+  syncLogs    AgentSyncLog[]
+  states      PrinterState[]
+  discoveries DiscoveredDevice[]
+
+  @@unique([tenantId, name])
+  @@unique([id, tenantId])
+  @@map("collector_agents")
+}
+
+enum AgentEventStatus {
+  ACCEPTED
+  REJECTED
+}
+
+/// Événement reçu d'un agent. Son identifiant est celui de l'outbox de l'agent : le recevoir deux
+/// fois ne le traite qu'une fois (idempotence).
+model AgentEvent {
+  id            String           @id @db.Uuid
+  tenantId      String           @map("tenant_id") @db.Uuid
+  agentId       String           @map("agent_id") @db.Uuid
+  type          String
+  schemaVersion Int              @map("schema_version")
+  /// Machine concernée ; sans clé étrangère, pour que le journal survive à la machine.
+  printerId     String?          @map("printer_id") @db.Uuid
+  occurredAt    DateTime         @map("occurred_at") @db.Timestamptz(3)
+  receivedAt    DateTime         @default(now()) @map("received_at") @db.Timestamptz(3)
+  status        AgentEventStatus
+  error         String?
+  payload       Json
+
+  tenant Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  agent  CollectorAgent @relation(fields: [agentId, tenantId], references: [id, tenantId], onDelete: Cascade)
+
+  @@index([tenantId, receivedAt(sort: Desc)])
+  @@index([agentId, receivedAt(sort: Desc)])
+  @@index([tenantId, status, receivedAt(sort: Desc)])
+  @@map("agent_events")
+}
+
+/// Journal des synchronisations : un lot reçu d'un agent.
+model AgentSyncLog {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  agentId    String   @map("agent_id") @db.Uuid
+  receivedAt DateTime @default(now()) @map("received_at") @db.Timestamptz(3)
+  received   Int
+  accepted   Int
+  duplicates Int
+  rejected   Int
+  durationMs Int      @map("duration_ms")
+
+  tenant Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  agent  CollectorAgent @relation(fields: [agentId, tenantId], references: [id, tenantId], onDelete: Cascade)
+
+  @@index([tenantId, receivedAt(sort: Desc)])
+  @@map("agent_sync_logs")
+}
+
+/// Dernier état SNMP connu d'une machine : joignabilité, statut, alertes, niveaux des consommables.
+/// Les niveaux sont ceux déclarés par la machine (origine `snmp_level`), jamais une consommation.
+model PrinterState {
+  printerId     String   @id @map("printer_id") @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  agentId       String   @map("agent_id") @db.Uuid
+  eventId       String   @map("event_id") @db.Uuid
+  observedAt    DateTime @map("observed_at") @db.Timestamptz(3)
+  reachable     Boolean
+  error         String?
+  deviceStatus  String?  @map("device_status")
+  printerStatus String?  @map("printer_status")
+  alerts        String[]
+  supplies      Json
+  totalCount    Int?     @map("total_count")
+  serialNumber  String?  @map("serial_number")
+  description   String?
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant  Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  printer Printer        @relation(fields: [printerId, tenantId], references: [id, tenantId], onDelete: Cascade)
+  agent   CollectorAgent @relation(fields: [agentId, tenantId], references: [id, tenantId], onDelete: Cascade)
+
+  @@unique([printerId, tenantId])
+  @@index([tenantId])
+  @@map("printer_states")
+}
+
+/// Équipement trouvé par la découverte réseau d'un agent, rattaché ou non à une machine du parc.
+model DiscoveredDevice {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  agentId      String   @map("agent_id") @db.Uuid
+  ipAddress    String   @map("ip_address")
+  serialNumber String?  @map("serial_number")
+  sysName      String?  @map("sys_name")
+  description  String?
+  macAddress   String?  @map("mac_address")
+  printerId    String?  @map("printer_id") @db.Uuid
+  ignored      Boolean  @default(false)
+  firstSeenAt  DateTime @default(now()) @map("first_seen_at") @db.Timestamptz(3)
+  lastSeenAt   DateTime @map("last_seen_at") @db.Timestamptz(3)
+
+  tenant  Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  agent   CollectorAgent @relation(fields: [agentId, tenantId], references: [id, tenantId], onDelete: Cascade)
+  printer Printer?       @relation(fields: [printerId, tenantId], references: [id, tenantId], onDelete: Restrict)
+
+  @@unique([tenantId, ipAddress])
+  @@index([tenantId, lastSeenAt(sort: Desc)])
+  @@map("discovered_devices")
 }

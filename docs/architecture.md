@@ -108,6 +108,8 @@ La matrice des rôles est définie dans le code (`packages/shared-types/src/acce
 | `consumption:manage`      |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
 | `print-jobs:read`         |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |             |
 | `print-jobs:manage`       |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
+| `agents:read`             |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
+| `agents:manage`           |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
 
 Un administrateur client ne peut ni attribuer le rôle Super Administrateur, ni modifier son propre rôle ou statut.
 
@@ -256,6 +258,49 @@ Le lissage : k = (Σ réel + m × k_ref × T̄) / (Σ théorique + m × T̄), o�
 **Rapport de préproduction.** Pour une machine et un nombre d'exemplaires, l'API ramène le travail à des pages A4 équivalentes : pages = Σ surfaces × exemplaires, pages couleur = Σ surfaces des pages couleur × exemplaires. La couverture de chaque encre est la moyenne pondérée par la surface (le noir sur toutes les pages, les couleurs sur les pages couleur ; le gris sur une machine noir et blanc). Le moteur de consommation calcule alors le toner, le coût et la calibration, comme pour le simulateur. Le toner d'un exemplaire est réparti entre les pages au prorata de leur couverture × surface.
 
 **Isolation.** Les deux tables ont la RLS `tenant_isolation` ; les pages ont une clé étrangère composite (`job_id`, `tenant_id`) ; un déclencheur refuse la machine d'une autre entreprise.
+
+## Collecte SNMP
+
+**Agent.** L'agent Windows `services/collector` interroge les imprimantes en SNMP. Il range ses relevés dans une outbox SQLite et les synchronise par le relais du frontend. Installation, données collectées, stockage local et protocole : [collector.md](collector.md).
+
+**Enregistrement et authentification.**
+
+- Un administrateur déclare l'agent (`collector_agents`), éventuellement limité à un site. Il obtient un code à usage unique, valable 24 heures.
+- L'agent échange ce code contre un jeton de 256 bits (`POST /agent/v1/enroll`).
+- Le serveur ne garde que les empreintes SHA-256 du code et du jeton. Une contrainte de la table garantit qu'un agent actif a un jeton et qu'un agent révoqué n'en a plus.
+- Les routes de l'agent sont publiques pour la garde de session, mais protégées par `AgentGuard`. Celle-ci retrouve l'agent par l'empreinte du jeton et revérifie à chaque requête que l'agent et son entreprise sont actifs. L'entreprise et le site viennent de l'agent, jamais de la requête.
+
+**Configuration.** `GET /agent/v1/config` renvoie à l'agent :
+
+- les machines de son périmètre qui ont une adresse et ne sont pas retirées ;
+- leurs secrets SNMP, déchiffrés pour l'agent seulement ;
+- l'OID du compteur total (Printer-MIB) et ceux des compteurs noir et couleur, propres au constructeur et renseignés sur la fiche technique (`printer_models.snmp_black_counter_oid`, `snmp_color_counter_oid`).
+
+**Synchronisation idempotente.** `POST /agent/v1/events` reçoit un lot de l'outbox de l'agent. Chaque événement est traité dans sa propre transaction et journalisé dans `agent_events`, sous l'identifiant que lui a donné l'agent :
+
+- un identifiant déjà connu est acquitté `duplicate`, sans second traitement ;
+- un événement invalide, hors périmètre ou daté dans le futur est rejeté avec sa raison, sans bloquer les autres ;
+- chaque lot est inscrit au journal des synchronisations (`agent_sync_logs`).
+
+Effets des événements :
+
+| Événement           | Effet                                                                                                                                                                 |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `meter.reading`     | Relevé `meter_readings` de source `AGENT`, `external_id` = identifiant de l'événement. Une machine couleur exige noir et couleur                                      |
+| `printer.status`    | Dernier état `printer_states` (statut, alertes, niveaux `snmp_level`), connectivité et dernière réponse de la machine. Un état plus ancien ne remplace pas le dernier |
+| `device.discovered` | `discovered_devices`, rattaché à la machine de même numéro de série                                                                                                   |
+
+**Interface.** La page **Agents de collecte** (`/collecte`) présente :
+
+- les agents, avec leur état et leur activité des dernières 24 heures ;
+- les codes d'enregistrement, montrés une seule fois ;
+- les révocations ;
+- les équipements découverts, qu'on peut associer à une machine ou ignorer ;
+- le journal des synchronisations et les événements rejetés.
+
+La fiche machine affiche le panneau **État SNMP**. La fiche technique reçoit les OID des compteurs.
+
+**Isolation.** Les cinq tables de la collecte sont sous RLS. Leurs clés étrangères composites (`agent_id`, `tenant_id`) et (`printer_id`, `tenant_id`) empêchent tout rattachement à une autre entreprise.
 
 ## Origine des données
 

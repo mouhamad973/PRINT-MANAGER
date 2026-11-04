@@ -5,15 +5,29 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "arksen-collector"
 version = "0.1.0"
-description = "Agent Windows ARKSEN Collector (développé en Phase 7)"
+description = "Agent Windows ARKSEN Collector : collecte SNMP, stockage SQLite et synchronisation HTTPS"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    # Licences permissives : PySNMP BSD-2, httpx BSD-3.
+    "pysnmp>=7.1",
+    "httpx>=0.28",
+    # Chiffrement SNMPv3 (DES, AES) : Apache-2.0 ou BSD-3.
+    "cryptography>=43",
+    # Service Windows (PSF) ; inutile ailleurs.
+    "pywin32>=308; sys_platform == 'win32'",
+]
 
 [project.optional-dependencies]
 dev = [
     "mypy>=1.13",
     "pytest>=8.3",
     "ruff>=0.8",
+    # Simulateur d'équipements SNMP (BSD-2) pour les tests : de vraies requêtes SNMP, sur la boucle locale.
+    "snmpsim>=1.1",
+    "pysmi>=1.5",
+]
+package = [
+    "pyinstaller>=6.11",
 ]
 
 [project.scripts]
@@ -21,6 +35,9 @@ arksen-collector = "arksen_collector.__main__:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+arksen_collector = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -32,6 +49,14 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
 
+[tool.ruff.lint.per-file-ignores]
+# Gabarit HTML de l'interface locale : ses lignes suivent le balisage.
+"src/arksen_collector/webui.py" = ["E501"]
+
 [tool.mypy]
 python_version = "3.12"
 strict = true
+
+[[tool.mypy.overrides]]
+module = ["pysnmp", "pysnmp.*", "pyasn1", "pyasn1.*", "win32serviceutil", "win32service", "win32event", "servicemanager"]
+ignore_missing_imports = true

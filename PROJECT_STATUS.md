@@ -1,6 +1,6 @@
 # État du projet ARKSEN PRINT MANAGER
 
-Dernière mise à jour : 5 novembre 2026.
+Dernière mise à jour : 6 novembre 2026.
 
 ## Avancement
 
@@ -11,8 +11,8 @@ Dernière mise à jour : 5 novembre 2026.
 | 3     | Dashboard et gestion du parc machines        | Terminée et validée                |
 | 4     | Compteurs et historique                      | Terminée et validée                |
 | 5     | Moteur de calcul de consommation CMJN        | Terminée et validée                |
-| 6     | Analyse PDF                                  | Terminée, en attente de validation |
-| 7     | Collecteur SNMP et agent Windows             | À faire                            |
+| 6     | Analyse PDF                                  | Terminée et validée                |
+| 7     | Collecteur SNMP et agent Windows             | Terminée, en attente de validation |
 | 8     | Gestion des consommables et stocks           | À faire                            |
 | 9     | Coûts, maintenance et contrats               | À faire                            |
 | 10    | Rapports et déploiement commercial           | À faire                            |
@@ -86,6 +86,113 @@ Comportement en panne, vérifié sur la stack réelle :
 - **Starlette** signale la dépréciation de `httpx` pour son client de test. Cela ne concerne que les tests.
 - **Licences AGPL :** résolu en Phase 6. PyMuPDF et Ghostscript ont été écartés au profit de PDFium (`pypdfium2`, BSD et Apache 2.0) et de LittleCMS (MIT).
 - **Aucun commit :** résolu, chaque phase est commitée et poussée.
+
+## Phase 7 : Collecteur SNMP et agent Windows
+
+### Livré
+
+- **Agent Windows autonome** `services/collector` (Python, PySNMP, SQLite, pywin32) :
+  - service `ArksenCollector` en démarrage automatique ;
+  - paquet PyInstaller sans Python à installer, avec scripts d'installation et de désinstallation ;
+  - ligne de commande : `enroll`, `run`, `collect`, `sync`, `discover`, `status`, `ui`, `service`.
+- **Collecte automatique** en SNMP v1, v2c et v3 (authentification et chiffrement), 16 machines à la fois, à la fréquence choisie (15 minutes par défaut). L'agent lit :
+  - les compteurs : total Printer-MIB, noir et couleur selon les OID de la fiche technique ;
+  - les niveaux des consommables, avec leur canal CMJN ;
+  - le statut, l'activité et les alertes : papier, toner, capot, bourrage, maintenance…
+  - Une machine injoignable produit un état « injoignable » avec sa raison, jamais un relevé.
+- **Découverte des équipements** sur des plages d'adresses (4 096 au plus), communautés au choix, imprimantes seules. Le serveur rattache un équipement à la machine de même numéro de série ; les autres s'associent à une machine ou s'ignorent.
+- **Stockage SQLite** (mode WAL) avec une Transactional Outbox. Un relevé et son événement sont écrits dans la même transaction. Chaque événement porte :
+  - un UUID, l'identifiant de la machine et celui de l'agent ;
+  - un horodatage et une version de schéma ;
+  - un statut de synchronisation.
+- **Synchronisation HTTPS** par le relais du frontend :
+  - lots de 200 événements, un accusé par événement : accepté, doublon ou rejeté avec sa raison ;
+  - idempotence et gestion des doublons côté serveur ;
+  - journal des synchronisations des deux côtés.
+- **Fonctionnement hors ligne :** la configuration reçue est gardée en cache (DPAPI), la collecte continue sans Internet, et un événement non acquitté n'est jamais supprimé.
+- **Reprise automatique :** délai exponentiel de 5 s à 1 h, avec ±20 % d'aléa, sans intervention.
+- **Enregistrement sécurisé :**
+  - code à usage unique de 80 bits, valable 24 heures, à tentatives limitées ;
+  - jeton de 256 bits, dont le serveur ne garde que l'empreinte et l'agent garde une copie chiffrée par DPAPI ;
+  - révocation immédiate. Le serveur identifie l'agent par son jeton et en déduit son entreprise et son site.
+- **Interface de configuration locale** (127.0.0.1:8765) : serveur, identifiants de l'entreprise et de l'agent, plages de découverte, fréquence, état et journal de synchronisation. Elle est protégée contre le rebinding DNS et le CSRF.
+- **Application web :**
+  - page **Agents de collecte** : agents et leur état, codes d'enregistrement, révocation, équipements découverts, journal des synchronisations, événements rejetés ;
+  - panneau **État SNMP** de la fiche machine ;
+  - OID des compteurs dans la fiche technique ;
+  - connectivité réelle des machines.
+
+Documentation : [docs/collector.md](docs/collector.md) pour l'agent, et [docs/architecture.md](docs/architecture.md), section « Collecte SNMP », pour le serveur.
+
+### Critères d'acceptation
+
+| Critère                                        | Résultat                                                                           |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Découverte des équipements                     | Validé : plages, communautés, imprimantes seules, rattachement par numéro de série |
+| Collecte automatique                           | Validé : compteurs, niveaux, états et alertes, SNMP v1, v2c et v3                  |
+| Agent Windows autonome                         | Validé : service Windows, paquet PyInstaller construit et vérifié                  |
+| Stockage SQLite                                | Validé : outbox transactionnelle, relevés, journal                                 |
+| Synchronisation HTTPS                          | Validé : HTTPS imposé hors boucle locale, accusés par événement                    |
+| Fonctionnement hors ligne                      | Validé : configuration en cache, collecte sans réseau, rien n'est perdu            |
+| Reprise automatique des synchronisations       | Validé : délai exponentiel, réponse perdue renvoyée et comptée une fois            |
+| Idempotence, doublons, isolation               | Validé : tests de l'agent et de bout en bout, RLS                                  |
+| `build`, `typecheck`, `lint` et `test` passent | Validé : 30 tâches sur 30, sans cache                                              |
+
+Détail des tests :
+
+| Paquet                 | Tests | Dont nouveaux en Phase 7 |
+| ---------------------- | ----- | ------------------------ |
+| `@arksen/api`          | 64    | 4                        |
+| `@arksen/validation`   | 60    | 7                        |
+| `@arksen/analytics`    | 68    |                          |
+| `@arksen/collector`    | 43    | 41                       |
+| `@arksen/web`          | 34    |                          |
+| `@arksen/shared-types` | 12    |                          |
+| `@arksen/database`     | 2     |                          |
+| `@arksen/workers`      | 2     |                          |
+
+Soit 285 tests unitaires et d'intégration, et **91 tests de bout en bout** sur la stack Docker réelle (14 nouveaux, tous réussis du premier coup, dans `apps/api/test/e2e/collector.e2e.test.ts`). Ils couvrent :
+
+- l'enregistrement et la réutilisation refusée d'un code ;
+- la configuration limitée au site de l'agent, avec la communauté déchiffrée ;
+- un relevé accepté puis renvoyé comme doublon, sans second relevé ;
+- sept rejets individuels dans un même lot : compteurs couleur absents, autre site, autre entreprise, schéma inconnu, type inconnu, date future ;
+- l'état SNMP, dont un état plus ancien qui ne remplace pas le dernier, et la connectivité ;
+- la découverte rattachée par numéro de série ;
+- les droits, l'isolation en base (RLS), la révocation immédiate et le réenregistrement.
+
+Les tests de l'agent interrogent un vrai répondeur SNMP sur la boucle locale (snmpsim) : de vraies requêtes UDP en SNMP v1, v2c et v3 (SHA et AES). Ils vérifient aussi :
+
+- l'outbox : transactions, accusés, reprise, purge prudente, redémarrage ;
+- la synchronisation : coupure réseau, erreur serveur, réponse perdue suivie d'un doublon, rejet définitif, révocation puis réenregistrement ;
+- un cycle complet avec une période hors ligne ;
+- l'interface locale : en-tête Host, CSRF, origine.
+
+Vérification de la stack (`pnpm stack:smoke`) : 11 contrôles sur 11.
+
+Démonstration réelle de bout en bout : l'exécutable packagé (`dist/arksen-collector`) s'est enregistré auprès de la stack locale, a collecté en SNMP sur le simulateur, découvert une imprimante et synchronisé ses événements. Les données de démonstration de `demo-interface` sont clairement marquées :
+
+- l'agent « Agent de démonstration (simulateur SNMP) » ;
+- deux machines « Simulateur … (démo) » reliées au simulateur local ;
+- les autres machines de démonstration, aux adresses fictives, signalées injoignables, ce qu'elles sont réellement.
+
+Vérification visuelle : page Agents de collecte et fiche machine (panneau État SNMP), en clair, en sombre et sur mobile, sans erreur dans la console. Deux corrections en ont découlé : le journal des synchronisations empilé sous 1 536 px, et les actions des agents réduites à leur icône sur mobile.
+
+### Écarts par rapport au plan
+
+- **Compteurs noir et couleur :** ils ne sont pas normalisés en SNMP. Ils se renseignent par OID sur la fiche technique de chaque modèle ; aucun OID constructeur n'est inventé. Sans eux, une machine couleur ne produit que son état.
+- **Machines configurées sur le serveur :** l'interface locale règle la découverte et la fréquence, mais les adresses et les identifiants SNMP restent gérés dans l'application, au même endroit que le parc.
+- **Synchronisation par le relais du frontend :** l'agent n'a besoin que de l'adresse web de l'application. La terminaison TLS (Nginx) sera mise en place en Phase 10.
+- **Page « Agents de collecte » :** elle s'ajoute aux 20 modules du cahier des charges (agent Windows, § 8).
+
+### Points restants
+
+- **Signature de code :** le paquet n'est pas signé. Une signature Authenticode sera nécessaire avant la commercialisation, pour éviter les alertes SmartScreen.
+- **Installateur MSI :** le paquet est un ZIP accompagné de scripts PowerShell ; un installateur MSI pourra le remplacer.
+- **Historique des niveaux :** seul le dernier état SNMP est conservé côté serveur. Les alertes et les prévisions de la Phase 8 en garderont l'historique.
+- **Événements serveur :** le journal `agent_events` n'a pas encore de purge. Une rétention sera fixée avec les rapports de la Phase 10.
+- **Requêtes concurrentes dans une transaction :** toujours ouvert (voir Phase 5).
+- **Données de test :** entreprises `e2e-agent-…` laissées par les tests.
 
 ## Phase 6 : Analyse PDF
 
@@ -432,6 +539,16 @@ Vérification dans le navigateur : redirection vers `/login` avec retour à la p
 - **Points de la Phase 1 toujours ouverts :** ESLint 10, licences AGPL de la Phase 6, aucun commit.
 
 ## Journal des modifications
+
+### 6 novembre 2026 : Phase 7
+
+- **Agent :** `services/collector` : configuration, protection DPAPI, outbox SQLite, SNMP, Printer-MIB, collecte, découverte, synchronisation, interface locale, service Windows, ligne de commande ; paquet `packaging/` (PyInstaller, scripts d'installation) ; 41 tests contre le simulateur SNMP.
+- **Base de données :** migration `20261106000000_collector` : `collector_agents`, `agent_events`, `agent_sync_logs`, `printer_states`, `discovered_devices`, OID des compteurs des fiches techniques, contraintes et RLS.
+- **API :** module `collector` : administration des agents, protocole des agents (`agent/v1/enroll`, `config`, `events`), `AgentGuard`, état SNMP des machines.
+- **Contrats :** `packages/shared-types/src/collector.ts`, `packages/validation/src/collector.ts`, permissions `agents:read` et `agents:manage`.
+- **Web :** fonctionnalité `features/collector` (page Agents de collecte, panneau État SNMP), OID des compteurs dans la fiche technique, navigation et libellés du journal d'audit.
+- **Tests :** `collector.e2e.test.ts`, tests des schémas et des identifiants d'agent.
+- **Documentation :** `docs/collector.md`, `docs/architecture.md` (section « Collecte SNMP » et matrice des droits), `docs/development.md`.
 
 ### 5 novembre 2026 : Phase 6
 
