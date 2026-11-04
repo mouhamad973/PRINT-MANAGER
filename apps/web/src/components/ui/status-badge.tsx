@@ -1,5 +1,5 @@
 import type { TenantStatus, UserStatus } from '@arksen/shared-types';
-import { Badge } from './badge';
+import { Badge, StatusDot } from './badge';
 
 const LABELS: Record<TenantStatus | UserStatus, string> = {
   ACTIVE: 'Actif',
@@ -8,5 +8,10 @@ const LABELS: Record<TenantStatus | UserStatus, string> = {
 };
 
 export function StatusBadge({ status }: { status: TenantStatus | UserStatus }) {
-  return <Badge tone={status === 'ACTIVE' ? 'success' : 'danger'}>{LABELS[status]}</Badge>;
+  return (
+    <Badge tone={status === 'ACTIVE' ? 'success' : 'danger'}>
+      <StatusDot />
+      {LABELS[status]}
+    </Badge>
+  );
 }

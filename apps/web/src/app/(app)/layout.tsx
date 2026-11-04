@@ -5,8 +5,12 @@ import { SessionProvider } from '@/features/session/session-provider';
 
 function SessionLoading() {
   return (
-    <div className="min-h-dvh" role="status" aria-label="Chargement de la session">
-      <ControlStrip />
+    <div
+      className="flex min-h-dvh items-center justify-center"
+      role="status"
+      aria-label="Chargement de la session"
+    >
+      <ControlStrip className="w-24 animate-pulse" />
     </div>
   );
 }

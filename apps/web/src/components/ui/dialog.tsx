@@ -26,17 +26,17 @@ export function Dialog({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-black/45" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-[oklch(0.15_0.02_165/0.45)] backdrop-blur-[2px]" />
         <DialogPrimitive.Content
           // Sans description, Radix exige qu'on le déclare explicitement.
           {...(description ? {} : { 'aria-describedby': undefined })}
           className={cn(
-            'fixed top-1/2 left-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-lg border border-border bg-surface p-5 shadow-[0_12px_32px_-8px_rgb(0_0_0/0.35)]',
+            'fixed top-1/2 left-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl border border-border/70 bg-surface p-6 shadow-overlay',
             className,
           )}
         >
-          <div className="mb-4 pr-8">
-            <DialogPrimitive.Title className="text-base font-semibold">
+          <div className="mb-5 pr-8">
+            <DialogPrimitive.Title className="text-lg font-semibold tracking-[-0.015em]">
               {title}
             </DialogPrimitive.Title>
             {description && (
@@ -48,7 +48,7 @@ export function Dialog({
           {children}
           <DialogPrimitive.Close
             aria-label="Fermer"
-            className="absolute top-4 right-4 rounded-sm p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="absolute top-5 right-5 flex size-8 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <X className="size-4" aria-hidden="true" />
           </DialogPrimitive.Close>

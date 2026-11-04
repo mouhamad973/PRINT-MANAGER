@@ -101,16 +101,19 @@ export function TenantsPage() {
 
       <Panel>
         {tenants.isPending && (
-          <div className="space-y-3 p-4" role="status" aria-label="Chargement des entreprises">
+          <div className="space-y-4 p-5" role="status" aria-label="Chargement des entreprises">
             {[0, 1, 2].map((key) => (
-              <Skeleton key={key} className="h-5" />
+              <Skeleton key={key} className="h-6" />
             ))}
           </div>
         )}
         {tenants.isError && <FormError message={tenants.error.message} />}
         {tenants.data && tenants.data.total === 0 && (
-          <div className="flex flex-col items-start gap-3 p-6">
-            <Building2 className="size-5 text-muted-foreground" aria-hidden="true" />
+          <div className="flex flex-col items-start gap-3 p-6 sm:p-8">
+            <Building2
+              className="size-10 rounded-full bg-primary-soft p-2.5 text-primary-soft-foreground"
+              aria-hidden="true"
+            />
             <div>
               <p className="font-medium">
                 {filtered ? 'Aucune entreprise ne correspond' : 'Aucune entreprise cliente'}
@@ -137,7 +140,7 @@ export function TenantsPage() {
               </TableHeader>
               <TableBody>
                 {tenants.data.items.map((tenant) => (
-                  <TableRow key={tenant.id} className="hover:bg-muted/50">
+                  <TableRow key={tenant.id}>
                     <TableCell>
                       <Link href={`/tenants/${tenant.id}`} className="font-medium hover:underline">
                         {tenant.name}

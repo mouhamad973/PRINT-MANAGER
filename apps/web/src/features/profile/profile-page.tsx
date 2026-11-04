@@ -8,6 +8,8 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
 import { PageHeader } from '@/components/layout/page-header';
+import { initials } from '@/components/layout/user-menu';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { describedBy, Field, FormError } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -158,38 +160,47 @@ export function ProfilePage() {
     <div className="max-w-2xl space-y-8">
       <PageHeader title="Mon profil" />
 
-      <dl className="grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-3">
-        <div>
-          <dt className="text-xs text-muted-foreground">Adresse e-mail</dt>
-          <dd className="mt-0.5 font-medium break-all">{user.email}</dd>
+      <Panel className="p-5 sm:p-6">
+        <div className="flex items-center gap-4">
+          <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary-soft text-lg font-semibold text-primary-soft-foreground">
+            {initials(user.name)}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-lg font-semibold tracking-[-0.015em]">{user.name}</p>
+            <p className="truncate text-muted-foreground">{user.email}</p>
+          </div>
         </div>
-        <div>
-          <dt className="text-xs text-muted-foreground">Rôle</dt>
-          <dd className="mt-0.5 font-medium">{ROLE_LABELS[user.role]}</dd>
-        </div>
-        <div>
-          <dt className="text-xs text-muted-foreground">Entreprise</dt>
-          <dd className="mt-0.5 font-medium">{tenant?.name ?? 'Plateforme Arksen'}</dd>
-        </div>
-      </dl>
-      <p className="-mt-4 text-xs text-muted-foreground">
-        L’adresse, le rôle et l’entreprise sont gérés par votre administrateur.
-      </p>
+        <dl className="mt-5 grid gap-x-8 gap-y-4 border-t border-border/80 pt-5 sm:grid-cols-2">
+          <div>
+            <dt className="text-xs text-muted-foreground">Rôle</dt>
+            <dd className="mt-1">
+              <Badge tone="brand">{ROLE_LABELS[user.role]}</Badge>
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Entreprise</dt>
+            <dd className="mt-1 font-medium">{tenant?.name ?? 'Plateforme Arksen'}</dd>
+          </div>
+        </dl>
+        <p className="mt-5 text-xs text-muted-foreground">
+          L’adresse, le rôle et l’entreprise sont gérés par votre administrateur.
+        </p>
+      </Panel>
 
       <section className="space-y-3" aria-labelledby="identity-title">
-        <h2 id="identity-title" className="text-base font-semibold">
+        <h2 id="identity-title" className="text-lg font-semibold tracking-[-0.015em]">
           Identité
         </h2>
-        <Panel className="p-4">
+        <Panel className="p-5 sm:p-6">
           <NameForm />
         </Panel>
       </section>
 
       <section className="space-y-3" aria-labelledby="password-title">
-        <h2 id="password-title" className="text-base font-semibold">
+        <h2 id="password-title" className="text-lg font-semibold tracking-[-0.015em]">
           Mot de passe
         </h2>
-        <Panel className="p-4">
+        <Panel className="p-5 sm:p-6">
           <PasswordForm />
         </Panel>
       </section>

@@ -103,14 +103,14 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
       {suspended && (
         <p
           role="status"
-          className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-[13px] text-danger"
+          className="rounded-md border border-danger/25 bg-danger/10 px-3.5 py-2.5 text-[13px] text-danger"
         >
           Entreprise suspendue : ses utilisateurs ne peuvent plus se connecter.
         </p>
       )}
 
       <section className="space-y-3" aria-labelledby="details-title">
-        <h2 id="details-title" className="text-base font-semibold">
+        <h2 id="details-title" className="text-lg font-semibold tracking-[-0.015em]">
           Coordonnées
         </h2>
         {saved && (
@@ -118,7 +118,7 @@ export function TenantDetailPage({ tenantId }: { tenantId: string }) {
             Coordonnées enregistrées.
           </p>
         )}
-        <Panel className="p-4">
+        <Panel className="p-5 sm:p-6">
           <TenantForm
             key={data.updatedAt}
             tenant={data}

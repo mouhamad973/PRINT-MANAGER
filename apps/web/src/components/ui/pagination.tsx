@@ -16,7 +16,7 @@ export function Pagination({ page, pageSize, total, onPageChange }: PaginationPr
   const last = Math.min(total, page * pageSize);
 
   return (
-    <div className="flex items-center justify-between gap-3 border-t border-border px-3 py-2 text-[13px] text-muted-foreground">
+    <div className="flex items-center justify-between gap-3 border-t border-border/80 px-5 py-3 text-[13px] text-muted-foreground">
       <p className="tabular-nums">
         {first}–{last} sur {numberFormat.format(total)}
       </p>
@@ -24,6 +24,7 @@ export function Pagination({ page, pageSize, total, onPageChange }: PaginationPr
         <Button
           variant="ghost"
           size="icon"
+          className="size-9"
           aria-label="Page précédente"
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
@@ -33,6 +34,7 @@ export function Pagination({ page, pageSize, total, onPageChange }: PaginationPr
         <Button
           variant="ghost"
           size="icon"
+          className="size-9"
           aria-label="Page suivante"
           disabled={page >= pages}
           onClick={() => onPageChange(page + 1)}

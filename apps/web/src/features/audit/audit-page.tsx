@@ -83,9 +83,9 @@ export function AuditPage() {
       />
       <Panel>
         {logs.isPending && (
-          <div className="space-y-3 p-4" role="status" aria-label="Chargement du journal">
+          <div className="space-y-4 p-5" role="status" aria-label="Chargement du journal">
             {[0, 1, 2, 3].map((key) => (
-              <Skeleton key={key} className="h-5" />
+              <Skeleton key={key} className="h-6" />
             ))}
           </div>
         )}

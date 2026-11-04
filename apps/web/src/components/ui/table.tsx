@@ -13,7 +13,7 @@ export function Table({ className, ...props }: ComponentProps<'table'>) {
 }
 
 export function TableHeader({ className, ...props }: ComponentProps<'thead'>) {
-  return <thead className={cn('bg-muted/60', className)} {...props} />;
+  return <thead className={className} {...props} />;
 }
 
 export function TableBody({ className, ...props }: ComponentProps<'tbody'>) {
@@ -21,14 +21,22 @@ export function TableBody({ className, ...props }: ComponentProps<'tbody'>) {
 }
 
 export function TableRow({ className, ...props }: ComponentProps<'tr'>) {
-  return <tr className={cn('border-b border-border', className)} {...props} />;
+  return (
+    <tr
+      className={cn(
+        'border-b border-border/80 transition-colors [tbody_&]:hover:bg-surface-raised',
+        className,
+      )}
+      {...props}
+    />
+  );
 }
 
 export function TableHead({ className, ...props }: ComponentProps<'th'>) {
   return (
     <th
       className={cn(
-        'h-9 whitespace-nowrap border-b border-border px-3 text-left text-xs font-medium text-muted-foreground',
+        'h-10 border-y border-border/80 bg-surface-raised px-5 text-left text-[11px] font-medium tracking-[0.06em] whitespace-nowrap text-muted-foreground uppercase first:pl-5',
         className,
       )}
       {...props}
@@ -37,5 +45,5 @@ export function TableHead({ className, ...props }: ComponentProps<'th'>) {
 }
 
 export function TableCell({ className, ...props }: ComponentProps<'td'>) {
-  return <td className={cn('h-11 px-3 align-middle', className)} {...props} />;
+  return <td className={cn('h-14 px-5 align-middle', className)} {...props} />;
 }

@@ -15,7 +15,7 @@ interface FieldProps {
  */
 export function Field({ id, label, error, hint, children }: FieldProps) {
   return (
-    <div className="grid gap-1.5">
+    <div className="grid gap-2">
       <Label htmlFor={id}>{label}</Label>
       {children}
       {hint && !error && (
@@ -44,7 +44,7 @@ export function FormError({ message }: { message?: string | null }) {
   return (
     <p
       role="alert"
-      className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-[13px] text-danger"
+      className="rounded-md border border-danger/25 bg-danger/10 px-3.5 py-2.5 text-[13px] text-danger"
     >
       {message}
     </p>

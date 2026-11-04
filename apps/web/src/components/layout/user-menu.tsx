@@ -2,11 +2,11 @@
 
 import { ROLE_LABELS } from '@arksen/shared-types';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { LogOut, UserRound } from 'lucide-react';
+import { ChevronDown, LogOut, UserRound } from 'lucide-react';
 import Link from 'next/link';
 import { useSession } from '@/features/session/session-provider';
 
-function initials(name: string): string {
+export function initials(name: string): string {
   return name
     .split(/\s+/)
     .filter(Boolean)
@@ -16,7 +16,7 @@ function initials(name: string): string {
 }
 
 const itemClasses =
-  'flex h-8 cursor-pointer items-center gap-2 rounded-sm px-2 text-[13px] outline-none data-[highlighted]:bg-muted';
+  'flex h-9 cursor-pointer items-center gap-2.5 rounded-md px-2.5 text-[13px] outline-none data-[highlighted]:bg-muted';
 
 export function UserMenu() {
   const { current, signOut } = useSession();
@@ -26,20 +26,34 @@ export function UserMenu() {
     <DropdownMenu.Root>
       <DropdownMenu.Trigger
         aria-label={`Compte de ${user.name}`}
-        className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border bg-muted text-xs font-semibold text-foreground hover:border-input"
+        className="group flex shrink-0 cursor-pointer items-center gap-3 rounded-full p-0.5 text-left outline-none hover:bg-muted sm:pr-3"
       >
-        {initials(user.name)}
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary-soft text-[13px] font-semibold text-primary-soft-foreground">
+          {initials(user.name)}
+        </span>
+        <span className="hidden min-w-0 md:block">
+          <span className="block max-w-44 truncate text-sm leading-tight font-semibold">
+            {user.name}
+          </span>
+          <span className="block max-w-44 truncate text-xs leading-tight text-muted-foreground">
+            {user.email}
+          </span>
+        </span>
+        <ChevronDown
+          className="hidden size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180 sm:block"
+          aria-hidden="true"
+        />
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content
           align="end"
-          sideOffset={6}
-          className="z-50 w-64 rounded-lg border border-border bg-surface p-1 shadow-[0_12px_32px_-8px_rgb(0_0_0/0.3)]"
+          sideOffset={8}
+          className="z-50 w-64 rounded-xl border border-border/70 bg-surface p-1.5 shadow-overlay"
         >
-          <div className="px-2 py-2">
-            <p className="truncate font-medium">{user.name}</p>
+          <div className="px-2.5 py-2">
+            <p className="truncate font-semibold">{user.name}</p>
             <p className="truncate text-xs text-muted-foreground">{user.email}</p>
-            <p className="mt-1.5 text-xs text-muted-foreground">
+            <p className="mt-2 text-xs text-muted-foreground">
               {ROLE_LABELS[user.role]}
               {tenant && <> · {tenant.name}</>}
             </p>

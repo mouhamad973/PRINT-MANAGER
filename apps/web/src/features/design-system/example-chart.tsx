@@ -30,7 +30,7 @@ export function ExampleChart() {
   return (
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={EXAMPLE_DATA} barGap={2}>
+        <BarChart data={EXAMPLE_DATA} barGap={4} barCategoryGap="22%">
           <CartesianGrid vertical={false} stroke="var(--border)" />
           <XAxis
             dataKey="period"
@@ -49,7 +49,7 @@ export function ExampleChart() {
             contentStyle={{
               backgroundColor: 'var(--surface)',
               borderColor: 'var(--border)',
-              borderRadius: 5,
+              borderRadius: 12,
               color: 'var(--foreground)',
               fontSize: 13,
             }}
@@ -61,7 +61,7 @@ export function ExampleChart() {
               dataKey={ink.key}
               name={ink.label}
               fill={ink.color}
-              radius={[2, 2, 0, 0]}
+              radius={[6, 6, 6, 6]}
             />
           ))}
         </BarChart>

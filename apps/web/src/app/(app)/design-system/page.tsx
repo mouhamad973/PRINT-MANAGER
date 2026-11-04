@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
-import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/layout/page-header';
+import { Badge, StatusDot } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Panel } from '@/components/ui/panel';
+import { Panel, PanelHeader } from '@/components/ui/panel';
+import { StatCard } from '@/components/ui/stat-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -18,8 +20,8 @@ import { ExampleForm } from '@/features/design-system/example-form';
 
 export const metadata: Metadata = { title: 'Design system' };
 
-const NEUTRALS = ['background', 'surface', 'muted', 'border', 'input', 'foreground'];
-const SEMANTIC = ['primary', 'success', 'warning', 'danger'];
+const NEUTRALS = ['background', 'surface', 'surface-raised', 'muted', 'border', 'foreground'];
+const SEMANTIC = ['primary', 'primary-soft', 'success', 'warning', 'danger'];
 const INKS = [
   { name: 'Cyan', token: 'ink-cyan' },
   { name: 'Magenta', token: 'ink-magenta' },
@@ -31,7 +33,7 @@ function Swatch({ name, token }: { name: string; token: string }) {
   return (
     <li>
       <div
-        className="h-12 rounded-md border border-border"
+        className="h-14 rounded-lg border border-border"
         style={{ backgroundColor: `var(--${token})` }}
       />
       <p className="mt-1.5 text-xs text-muted-foreground">{name}</p>
@@ -42,7 +44,7 @@ function Swatch({ name, token }: { name: string; token: string }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-3">
-      <h2 className="text-base font-semibold">{title}</h2>
+      <h2 className="text-lg font-semibold tracking-[-0.015em]">{title}</h2>
       {children}
     </section>
   );
@@ -51,13 +53,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function DesignSystemPage() {
   return (
     <div className="space-y-10">
-      <div>
-        <h1 className="text-xl font-semibold">Design system</h1>
-        <p className="mt-1 max-w-[65ch] text-muted-foreground">
-          Les composants et les couleurs de l’application, dans le thème actif. Les encres CMJN sont
-          réservées aux données : jamais au texte ni aux actions.
-        </p>
-      </div>
+      <PageHeader
+        title="Design system"
+        description="Les composants et les couleurs de l’application, dans le thème actif. Les encres CMJN sont réservées aux données : jamais au texte ni aux actions."
+      />
 
       <Section title="Couleurs">
         <ul className="grid grid-cols-3 gap-3 sm:grid-cols-6">
@@ -79,11 +78,41 @@ export default function DesignSystemPage() {
 
       <Section title="Typographie">
         <div className="space-y-1.5">
-          <p className="text-xl font-semibold">Titre de page, 20 px semi-gras</p>
-          <p className="text-base font-semibold">Titre de section, 16 px semi-gras</p>
+          <p className="text-[2rem] leading-tight font-semibold tracking-[-0.03em]">
+            Titre de page, 32 px
+          </p>
+          <p className="text-[2.5rem] leading-none font-semibold tracking-[-0.035em] tabular-nums">
+            1 284 <span className="text-lg font-medium text-muted-foreground">pages</span>
+          </p>
+          <p className="text-base font-semibold">Titre de panneau, 16 px semi-gras</p>
           <p>Texte courant, 14 px : les tableaux restent denses et lisibles toute la journée.</p>
           <p className="text-xs text-muted-foreground">Libellé secondaire, 12 px</p>
           <p className="tabular-nums">Chiffres tabulaires : 1 284,50 g · 96,12 g · 0,0375 €</p>
+        </div>
+      </Section>
+
+      <Section title="Indicateurs">
+        <p className="text-xs text-muted-foreground">Valeurs d’exemple, sans donnée réelle.</p>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <StatCard
+            featured
+            label="Carte vedette"
+            value="24"
+            hint="Une seule par page, pour l’indicateur principal"
+          />
+          <StatCard label="Carte standard" value="10" hint="Libellé, valeur, contexte" />
+          <StatCard
+            label="Avec unité"
+            value="3"
+            unit="ms"
+            hint={
+              <Badge tone="success">
+                <StatusDot />
+                Exemple de variation
+              </Badge>
+            }
+          />
+          <StatCard label="Valeur inconnue" value="—" hint="Jamais de zéro inventé" />
         </div>
       </Section>
 
@@ -102,9 +131,19 @@ export default function DesignSystemPage() {
 
       <Section title="États">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge tone="success">En ligne</Badge>
-          <Badge tone="warning">Toner bas</Badge>
-          <Badge tone="danger">Hors ligne</Badge>
+          <Badge tone="brand">Marque</Badge>
+          <Badge tone="success">
+            <StatusDot />
+            En ligne
+          </Badge>
+          <Badge tone="warning">
+            <StatusDot />
+            Toner bas
+          </Badge>
+          <Badge tone="danger">
+            <StatusDot />
+            Hors ligne
+          </Badge>
           <Badge>Inconnu</Badge>
         </div>
         <Skeleton className="h-5 max-w-sm" />
@@ -112,11 +151,11 @@ export default function DesignSystemPage() {
 
       <Section title="Champs de saisie">
         <div className="grid max-w-md gap-4">
-          <div className="grid gap-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="ds-normal">Champ normal</Label>
             <Input id="ds-normal" placeholder="Saisissez une valeur" />
           </div>
-          <div className="grid gap-1.5">
+          <div className="grid gap-2">
             <Label htmlFor="ds-disabled">Champ désactivé</Label>
             <Input id="ds-disabled" disabled defaultValue="Valeur verrouillée" />
           </div>
@@ -124,14 +163,14 @@ export default function DesignSystemPage() {
       </Section>
 
       <Section title="Formulaire (React Hook Form et Zod)">
-        <Panel className="max-w-md p-4">
+        <Panel className="max-w-md p-5">
           <ExampleForm />
         </Panel>
       </Section>
 
       <Section title="Tableau">
-        <p className="text-xs text-muted-foreground">Contenu d’exemple, sans donnée réelle.</p>
         <Panel>
+          <PanelHeader title="Machines" description="Contenu d’exemple, sans donnée réelle." />
           <Table>
             <TableHeader>
               <TableRow>
@@ -144,14 +183,20 @@ export default function DesignSystemPage() {
               <TableRow>
                 <TableCell className="font-medium">Exemple A</TableCell>
                 <TableCell>
-                  <Badge tone="success">En ligne</Badge>
+                  <Badge tone="success">
+                    <StatusDot />
+                    En ligne
+                  </Badge>
                 </TableCell>
                 <TableCell className="text-right">128 450</TableCell>
               </TableRow>
               <TableRow>
                 <TableCell className="font-medium">Exemple B</TableCell>
                 <TableCell>
-                  <Badge tone="danger">Hors ligne</Badge>
+                  <Badge tone="danger">
+                    <StatusDot />
+                    Hors ligne
+                  </Badge>
                 </TableCell>
                 <TableCell className="text-right">9 302</TableCell>
               </TableRow>
@@ -161,9 +206,14 @@ export default function DesignSystemPage() {
       </Section>
 
       <Section title="Graphique (Recharts)">
-        <p className="text-xs text-muted-foreground">Valeurs d’exemple, sans donnée réelle.</p>
-        <Panel className="p-4">
-          <ExampleChart />
+        <Panel>
+          <PanelHeader
+            title="Consommation par encre"
+            description="Valeurs d’exemple, sans donnée réelle."
+          />
+          <div className="px-3 pb-4">
+            <ExampleChart />
+          </div>
         </Panel>
       </Section>
     </div>

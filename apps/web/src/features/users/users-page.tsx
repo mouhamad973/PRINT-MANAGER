@@ -28,7 +28,7 @@ function RolesMatrix() {
   return (
     <section className="space-y-3" aria-labelledby="roles-title">
       <div>
-        <h2 id="roles-title" className="text-base font-semibold">
+        <h2 id="roles-title" className="text-lg font-semibold tracking-[-0.015em]">
           Rôles et permissions
         </h2>
         <p className="mt-1 max-w-[65ch] text-muted-foreground">

@@ -20,9 +20,9 @@ export function SearchInput({ label, placeholder, onSearch }: SearchInputProps) 
   }, [value, onSearch]);
 
   return (
-    <div className="relative w-full max-w-xs">
+    <div className="relative w-full sm:w-72">
       <Search
-        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+        className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
         aria-hidden="true"
       />
       <Input
@@ -31,7 +31,7 @@ export function SearchInput({ label, placeholder, onSearch }: SearchInputProps) 
         placeholder={placeholder}
         value={value}
         onChange={(event) => setValue(event.target.value)}
-        className="pl-9"
+        className="rounded-full bg-surface-raised pl-10"
       />
     </div>
   );

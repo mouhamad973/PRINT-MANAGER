@@ -164,6 +164,18 @@ Vérification dans le navigateur : redirection vers `/login` avec retour à la p
 
 ## Journal des modifications
 
+### 4 novembre 2026 : refonte visuelle de l'interface
+
+Demandée avant la Phase 3, d'après trois maquettes choisies par le client. Le détail est dans [docs/design-system.md](docs/design-system.md).
+
+- **Direction :** panneaux blancs flottants sur un canevas gris-vert, accent vert sapin, carte vedette en dégradé, boutons pilule. En thème sombre, une ardoise froide en couches.
+- **Police :** Geist remplace Archivo.
+- **Shell :** sidebar à sections avec bloc organisation et barre d'élément actif, en-tête flottant avec le compte de l'utilisateur.
+- **Composants :** nouveaux `StatCard`, `PanelHeader`, `IconButton` et `StatusDot` ; tous les composants existants sont restylés. Les alias de variables shadcn/ui sont en place, pour ajouter ses composants sans adaptation.
+- **Pages :** l'état de la plateforme devient un tableau de bord d'indicateurs ; la page de connexion a un panneau de marque ; le profil a une carte de résumé. Une icône d'onglet est ajoutée.
+- **Aucune fonctionnalité modifiée :** 24 tests web réussis, sans changement des tests.
+- **Vérification visuelle :** toutes les pages en clair, en sombre et sur mobile, avec un compte de test de l'entreprise `demo-interface`. Ses identifiants sont dans `.env` (`UI_TEST_*`), qui n'est pas versionné.
+
 ### 3 novembre 2026 : Phase 2
 
 - **Base de données :** modèles `Tenant`, `User`, `Session`, `Account`, `Verification` et `AuditLog`. Migration `20261103000000_auth_tenants`, avec les politiques RLS et le déclencheur du journal d'audit. Script `packages/database/scripts/provision.mjs`, qui crée les rôles et applique leurs droits. Fonction `withTenant()`.

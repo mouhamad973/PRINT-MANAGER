@@ -96,11 +96,11 @@ export function UsersPanel({ tenantId }: { tenantId: string }) {
 
   return (
     <section className="space-y-3" aria-labelledby="users-title">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 id="users-title" className="text-base font-semibold">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 id="users-title" className="text-lg font-semibold tracking-[-0.015em]">
           Utilisateurs
         </h2>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2.5 sm:w-auto sm:flex-nowrap">
           <SearchInput
             label="Rechercher un utilisateur"
             placeholder="Nom ou e-mail"
@@ -123,7 +123,7 @@ export function UsersPanel({ tenantId }: { tenantId: string }) {
       {notice && (
         <p
           role="status"
-          className="rounded-md border border-success/30 bg-success/10 px-3 py-2 text-[13px] text-success"
+          className="rounded-md border border-success/25 bg-success/10 px-3.5 py-2.5 text-[13px] text-success"
         >
           {notice}
         </p>
@@ -131,16 +131,19 @@ export function UsersPanel({ tenantId }: { tenantId: string }) {
 
       <Panel>
         {users.isPending && (
-          <div className="space-y-3 p-4" role="status" aria-label="Chargement des utilisateurs">
+          <div className="space-y-4 p-5" role="status" aria-label="Chargement des utilisateurs">
             {[0, 1, 2].map((key) => (
-              <Skeleton key={key} className="h-5" />
+              <Skeleton key={key} className="h-6" />
             ))}
           </div>
         )}
         {users.isError && <FormError message={users.error.message} />}
         {users.data && users.data.total === 0 && (
-          <div className="flex flex-col items-start gap-3 p-6">
-            <Users className="size-5 text-muted-foreground" aria-hidden="true" />
+          <div className="flex flex-col items-start gap-3 p-6 sm:p-8">
+            <Users
+              className="size-10 rounded-full bg-primary-soft p-2.5 text-primary-soft-foreground"
+              aria-hidden="true"
+            />
             <div>
               <p className="font-medium">
                 {search ? 'Aucun utilisateur ne correspond' : 'Aucun utilisateur'}
