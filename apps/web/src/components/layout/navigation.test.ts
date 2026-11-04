@@ -48,13 +48,19 @@ describe('navigationFor', () => {
   });
 
   it('garde visibles les modules à venir, marqués de leur phase', () => {
-    expect(labels(current('USER'))).toContain('Compteurs');
+    expect(labels(current('USER'))).toContain('Impressions');
   });
 
   it('ouvre le parc à tous les rôles d’entreprise et à la plateforme', () => {
     for (const role of ['CLIENT_ADMIN', 'TECHNICIAN', 'USER'] as const) {
       expect(labels(current(role))).toEqual(
-        expect.arrayContaining(['Tableau de bord', 'Sites', 'Machines', 'Fiches techniques']),
+        expect.arrayContaining([
+          'Tableau de bord',
+          'Sites',
+          'Machines',
+          'Fiches techniques',
+          'Compteurs',
+        ]),
       );
     }
     expect(labels(current('SUPER_ADMIN', false))).toContain('Machines');

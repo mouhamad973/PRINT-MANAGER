@@ -102,6 +102,8 @@ La matrice des rôles est définie dans le code (`packages/shared-types/src/acce
 | `printers:manage`         |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
 | `printers:network:manage` |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
 | `printer-models:manage`   |     Oui     |     Oui      |       Oui        |            |             |             |
+| `meters:read`             |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |     Oui     |
+| `meters:manage`           |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
 
 Un administrateur client ne peut ni attribuer le rôle Super Administrateur, ni modifier son propre rôle ou statut.
 
@@ -159,6 +161,32 @@ La communauté SNMPv1/v2c et les mots de passe SNMPv3 sont chiffrés en AES-256-
 Ils sont en écriture seule. L'API n'en renvoie que la présence (`hasCommunity`, `hasAuthPassword`, `hasPrivPassword`). Un secret absent de la requête est conservé, `null` l'efface, une valeur le remplace. Le journal d'audit indique quels secrets ont changé, jamais leur valeur.
 
 La clé doit être sauvegardée avec la base : sans elle, les secrets sont perdus et doivent être ressaisis. Sa rotation, qui demande de rechiffrer les secrets, est à outiller avant la mise en production.
+
+## Compteurs
+
+Un relevé (`meter_readings`) photographie les compteurs noir et blanc et couleur d'une machine à un instant donné. Le total est toujours égal à leur somme, ce que la base vérifie par une contrainte. Une machine noir et blanc n'a pas de compteur couleur, et une machine couleur doit avoir les deux.
+
+**Sources.** En Phase 4, les relevés sont saisis à la main ou importés depuis un fichier CSV. L'agent de collecte (Phase 7) en enverra avec la source `AGENT`.
+
+**Idempotence.** Une machine n'a qu'un relevé par instant (contrainte unique `printer_id, read_at`), et un identifiant externe facultatif est unique par entreprise. Rejouer un import, ou plus tard une synchronisation de l'agent, ne crée donc jamais de doublon.
+
+**Volumes.** Ils se déduisent des écarts entre relevés successifs. Le volume d'un intervalle est réparti à parts égales dans le temps, puis regroupé par jour ou par mois (jours UTC). Chaque volume porte sa **couverture** : la part de la période encadrée par des relevés. Un jour sans relevé de part et d'autre a un volume inconnu, jamais nul. Les arrondis ne se font qu'à la fin des calculs.
+
+**Remise à zéro.** Quand un compteur est remplacé, le relevé est marqué « remise à zéro » : aucun volume n'est calculé avec le précédent, et aucune anomalie n'est signalée.
+
+**Anomalies**, calculées à la lecture, sans être stockées :
+
+| Anomalie                       | Règle                                                                                    | Gravité     |
+| ------------------------------ | ---------------------------------------------------------------------------------------- | ----------- |
+| Compteur en baisse             | Un canal est inférieur au relevé précédent, sans remise à zéro déclarée                  | Critique    |
+| Pic de volume                  | Débit supérieur à 4 fois la médiane des 10 intervalles précédents, et au moins 300 pages | Attention   |
+| Au-delà du volume constructeur | Débit quotidien supérieur au volume mensuel maximal de la fiche technique, divisé par 30 | Attention   |
+| Aucune impression              | Machine en service sans aucune page depuis au moins 30 jours                             | Information |
+| Relevé manquant                | Machine en service sans relevé depuis plus de 35 jours, ou jamais relevée                | Information |
+
+Les seuils sont réunis dans `apps/api/src/meters/meter-analysis.ts`, un module sans accès à la base, testé isolément.
+
+**Comparaison des périodes.** Les volumes d'une période se comparent à la période précédente de même durée, ou à la même période un an plus tôt.
 
 ## Origine des données
 

@@ -6,6 +6,7 @@ import { DashboardModule } from './dashboard/dashboard.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './health/health.module.js';
 import { MeModule } from './me/me.module.js';
+import { MetersModule } from './meters/meters.module.js';
 import { PrinterModelsModule } from './printer-models/printer-models.module.js';
 import { PrintersModule } from './printers/printers.module.js';
 import { RedisModule } from './redis/redis.module.js';
@@ -30,6 +31,7 @@ import { UsersModule } from './users/users.module.js';
     PrinterModelsModule,
     PrintersModule,
     DashboardModule,
+    MetersModule,
   ],
 })
 export class AppModule {}

@@ -56,6 +56,17 @@ describe('matrice des permissions', () => {
     ]);
   });
 
+  it('laisse chaque rôle consulter les compteurs, et réserve leur saisie au terrain', () => {
+    for (const role of TENANT_ROLES) {
+      expect(hasPermission(role, 'meters:read'), role).toBe(true);
+    }
+    expect(TENANT_ROLES.filter((role) => hasPermission(role, 'meters:manage'))).toEqual([
+      'CLIENT_ADMIN',
+      'PRINT_MANAGER',
+      'TECHNICIAN',
+    ]);
+  });
+
   it('donne un libellé à chaque permission d’entreprise', () => {
     const tenantPermissions = PERMISSIONS.filter(
       (permission) => !permission.startsWith('platform:'),

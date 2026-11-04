@@ -48,6 +48,9 @@ export const ACTION_LABELS: Record<string, string> = {
   'printer.status_changed': 'Statut de machine modifié',
   'printer.network_updated': 'Configuration réseau modifiée',
   'printer.network_cleared': 'Configuration réseau supprimée',
+  'meter.reading_created': 'Relevé de compteurs saisi',
+  'meter.reading_deleted': 'Relevé de compteurs supprimé',
+  'meter.readings_imported': 'Relevés de compteurs importés',
 };
 
 function describeTarget(entry: AuditLogEntry): string {

@@ -20,6 +20,15 @@ import { Panel, PanelHeader } from '@/components/ui/panel';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/ui/stat-card';
+import {
+  AnomalyBadge,
+  ChartLegend,
+  CoverageNote,
+  Variation,
+  VolumeChart,
+  numberFormat,
+} from '@/features/meters/meters-ui';
+import { periodRange } from '@/features/meters/periods';
 import { useSession } from '@/features/session/session-provider';
 import { fleetApi, fleetKeys } from './api';
 import { ChooseTenant } from './choose-tenant';
@@ -37,7 +46,6 @@ function share(part: number, total: number): string {
 
 /** Indicateurs du cahier des charges qui arrivent avec les phases suivantes : annoncés, jamais simulés. */
 const UPCOMING = [
-  { label: 'Impressions et volumes couleur / noir et blanc', phase: 4 },
   { label: 'Consommation toner CMJN, théorique et réelle', phase: 5 },
   { label: 'Machines en ligne et hors ligne', phase: 7 },
   { label: 'Alertes, stocks critiques et prévisions', phase: 8 },
@@ -70,7 +78,7 @@ function SitesChart({ data }: { data: FleetDashboard['bySite'] }) {
               fontSize: 13,
             }}
           />
-          <Bar dataKey="count" radius={[8, 8, 8, 8]} barSize={22}>
+          <Bar dataKey="count" radius={[8, 8, 8, 8]} barSize={22} isAnimationActive={false}>
             {data.map((site, index) => (
               <Cell key={site.siteId} fill={index === 0 ? 'var(--chart-1)' : 'var(--chart-2)'} />
             ))}
@@ -115,6 +123,17 @@ function Dashboard({ tenantId }: { tenantId: string }) {
   const dashboard = useQuery({
     queryKey: fleetKeys.dashboard(tenantId, filters),
     queryFn: () => fleetApi.dashboard(tenantId, filters),
+  });
+  const volumeParams = { ...periodRange('30d'), siteId, colorMode };
+  const volumes = useQuery({
+    queryKey: fleetKeys.volumes(tenantId, volumeParams),
+    queryFn: () => fleetApi.volumes(tenantId, volumeParams),
+    enabled: can('meters:read'),
+  });
+  const anomalies = useQuery({
+    queryKey: fleetKeys.anomalies(tenantId, { siteId }),
+    queryFn: () => fleetApi.anomalies(tenantId, { siteId }),
+    enabled: can('meters:read'),
   });
   const sites = useQuery({
     queryKey: fleetKeys.sites(tenantId, { all: true }),
@@ -246,6 +265,80 @@ function Dashboard({ tenantId }: { tenantId: string }) {
           }
         />
       </div>
+
+      {volumes.data && (
+        <div className="grid gap-4 xl:grid-cols-3">
+          <Panel className="xl:col-span-2">
+            <PanelHeader
+              title="Pages imprimées, 30 derniers jours"
+              description={
+                <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span>
+                    <span className="font-semibold text-foreground tabular-nums">
+                      {numberFormat.format(volumes.data.totals.total)}
+                    </span>{' '}
+                    pages, dont {numberFormat.format(volumes.data.totals.color)} en couleur
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-foreground">
+                    <Variation
+                      current={volumes.data.totals.total}
+                      previous={volumes.data.previousTotals.total}
+                    />
+                    <span className="text-muted-foreground">vs les 30 jours précédents</span>
+                  </span>
+                </span>
+              }
+              actions={
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href={href('/meters')}>
+                    Compteurs
+                    <ArrowRight aria-hidden="true" />
+                  </Link>
+                </Button>
+              }
+            />
+            <div className="space-y-3 px-3 pb-5">
+              <VolumeChart series={volumes.data.series} height={200} />
+              <div className="flex flex-wrap items-start justify-between gap-3 px-2">
+                <CoverageNote coverage={volumes.data.totals.coverage} />
+                <ChartLegend />
+              </div>
+            </div>
+          </Panel>
+          <Panel>
+            <PanelHeader title="Anomalies de compteurs" description="À vérifier sur le parc" />
+            {anomalies.data?.length === 0 && (
+              <p className="px-5 pb-6 text-muted-foreground">Aucune anomalie détectée.</p>
+            )}
+            {anomalies.data && anomalies.data.length > 0 && (
+              <ul className="divide-y divide-border/80 border-t border-border/80">
+                {anomalies.data.slice(0, 5).map((anomaly) => (
+                  <li
+                    key={`${anomaly.printerId}-${anomaly.code}-${anomaly.detectedAt}`}
+                    className="relative flex flex-wrap items-center justify-between gap-2 px-5 py-3 hover:bg-surface-raised"
+                  >
+                    <Link
+                      href={href(`/machines/${anomaly.printerId}`)}
+                      className="min-w-0 truncate font-medium after:absolute after:inset-0 hover:underline"
+                    >
+                      {anomaly.printerName}
+                    </Link>
+                    <AnomalyBadge anomaly={anomaly} />
+                  </li>
+                ))}
+                {anomalies.data.length > 5 && (
+                  <li className="px-5 py-3 text-[13px] text-muted-foreground">
+                    et {anomalies.data.length - 5} autre{anomalies.data.length - 5 > 1 ? 's' : ''},{' '}
+                    <Link href={href('/meters')} className="text-primary hover:underline">
+                      voir les compteurs
+                    </Link>
+                  </li>
+                )}
+              </ul>
+            )}
+          </Panel>
+        </div>
+      )}
 
       <div className="grid gap-4 xl:grid-cols-3">
         <Panel className="xl:col-span-2">

@@ -23,6 +23,7 @@ import { FormError } from '@/components/ui/field';
 import { Panel, PanelHeader } from '@/components/ui/panel';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PrinterMeters } from '@/features/meters/printer-meters';
 import { useSession } from '@/features/session/session-provider';
 import { errorMessage } from '@/lib/api';
 import { formatDate, formatDateTime } from '@/lib/format';
@@ -220,6 +221,10 @@ function PrinterDetailView({ tenantId, printerId }: { tenantId: string; printerI
           <ModelSheet tenantId={tenantId} modelId={data.model.id} />
         </div>
       </div>
+
+      {can('meters:read') && (
+        <PrinterMeters tenantId={tenantId} printerId={printerId} colorMode={data.model.colorMode} />
+      )}
 
       <Panel aria-labelledby="network-title">
         <PanelHeader

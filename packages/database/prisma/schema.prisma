@@ -48,6 +48,7 @@ model Tenant {
   printers           Printer[]
   printerModels      PrinterModel[]
   printerConnections PrinterConnection[]
+  meterReadings      MeterReading[]
 
   @@map("tenants")
 }
@@ -268,10 +269,11 @@ model Printer {
   createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  tenant     Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  site       Site               @relation(fields: [siteId, tenantId], references: [id, tenantId], onDelete: Restrict)
-  model      PrinterModel       @relation(fields: [modelId], references: [id], onDelete: Restrict)
-  connection PrinterConnection?
+  tenant        Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  site          Site               @relation(fields: [siteId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  model         PrinterModel       @relation(fields: [modelId], references: [id], onDelete: Restrict)
+  connection    PrinterConnection?
+  meterReadings MeterReading[]
 
   @@unique([tenantId, serialNumber])
   @@unique([id, tenantId])
@@ -334,4 +336,45 @@ model PrinterConnection {
   @@unique([printerId, tenantId])
   @@index([tenantId])
   @@map("printer_connections")
+}
+
+// =====================================================================
+// Phase 4 : compteurs
+// =====================================================================
+
+enum MeterSource {
+  MANUAL
+  IMPORT
+  AGENT
+}
+
+/// Relevé des compteurs d'une machine à un instant donné. Les volumes se déduisent des écarts entre relevés.
+/// Une machine n'a qu'un relevé par instant : rejouer un import ou une synchronisation ne crée pas de doublon.
+model MeterReading {
+  id             String      @id @default(uuid(7)) @db.Uuid
+  tenantId       String      @map("tenant_id") @db.Uuid
+  printerId      String      @map("printer_id") @db.Uuid
+  readAt         DateTime    @map("read_at") @db.Timestamptz(3)
+  blackCount     Int         @map("black_count")
+  /// Nul pour une machine noir et blanc.
+  colorCount     Int?        @map("color_count")
+  /// Toujours égal à noir + couleur (contrainte en base).
+  totalCount     Int         @map("total_count")
+  /// Compteur remis à zéro ou remplacé : aucun volume n'est calculé avec le relevé précédent.
+  isReset        Boolean     @default(false) @map("is_reset")
+  source         MeterSource @default(MANUAL)
+  /// Identifiant fourni par l'émetteur (agent, import) pour l'idempotence.
+  externalId     String?     @map("external_id") @db.Uuid
+  notes          String?
+  createdById    String?     @map("created_by_id")
+  createdByEmail String?     @map("created_by_email")
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  printer Printer @relation(fields: [printerId, tenantId], references: [id, tenantId], onDelete: Restrict)
+
+  @@unique([printerId, readAt])
+  @@unique([tenantId, externalId])
+  @@index([tenantId, readAt])
+  @@map("meter_readings")
 }

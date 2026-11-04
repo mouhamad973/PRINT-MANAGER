@@ -78,8 +78,9 @@ export const NAVIGATION: NavGroup[] = [
         href: '/printer-models',
         permission: 'printers:read',
       },
-      { label: 'Compteurs', icon: Gauge, phase: 4 },
-      { label: 'Impressions', icon: ClipboardList, phase: 4 },
+      { label: 'Compteurs', icon: Gauge, href: '/meters', permission: 'meters:read' },
+      // Travaux d'impression : ils arrivent avec l'analyse des fichiers (phase 6).
+      { label: 'Impressions', icon: ClipboardList, phase: 6 },
     ],
   },
   {

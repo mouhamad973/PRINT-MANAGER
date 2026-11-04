@@ -1,5 +1,9 @@
 import type {
   FleetDashboard,
+  FleetMeterAnomaly,
+  FleetVolumes,
+  MeterReading,
+  PrinterVolumes,
   Page,
   PrinterDetail,
   Printer,
@@ -20,6 +24,12 @@ export const fleetKeys = {
     ['fleet', tenantId, 'printer', printerId] as const,
   dashboard: (tenantId: string, params: object = {}) =>
     ['fleet', tenantId, 'dashboard', params] as const,
+  readings: (tenantId: string, printerId: string, params: object = {}) =>
+    ['fleet', tenantId, 'readings', printerId, params] as const,
+  volumes: (tenantId: string, params: object = {}) =>
+    ['fleet', tenantId, 'volumes', params] as const,
+  anomalies: (tenantId: string, params: object = {}) =>
+    ['fleet', tenantId, 'anomalies', params] as const,
 };
 
 type Params = Record<string, string | number | undefined>;
@@ -43,6 +53,18 @@ export const fleetApi = {
     apiFetch<PrinterDetail>(`/tenants/${tenantId}/printers/${printerId}`),
   dashboard: (tenantId: string, params: Params = {}) =>
     apiFetch<FleetDashboard>(`/tenants/${tenantId}/fleet-dashboard${queryString(params)}`),
+  readings: (tenantId: string, printerId: string, params: Params = {}) =>
+    apiFetch<Page<MeterReading>>(
+      `/tenants/${tenantId}/printers/${printerId}/meter-readings${queryString(params)}`,
+    ),
+  printerVolumes: (tenantId: string, printerId: string, params: Params) =>
+    apiFetch<PrinterVolumes>(
+      `/tenants/${tenantId}/printers/${printerId}/volumes${queryString(params)}`,
+    ),
+  volumes: (tenantId: string, params: Params) =>
+    apiFetch<FleetVolumes>(`/tenants/${tenantId}/volumes${queryString(params)}`),
+  anomalies: (tenantId: string, params: Params = {}) =>
+    apiFetch<FleetMeterAnomaly[]>(`/tenants/${tenantId}/meter-anomalies${queryString(params)}`),
 };
 
 export function send<T>(method: string, path: string, body?: unknown): Promise<T> {

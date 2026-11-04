@@ -8,8 +8,8 @@ Dernière mise à jour : 4 novembre 2026.
 | ----- | -------------------------------------------- | ---------------------------------- |
 | 1     | Architecture et configuration du projet      | Terminée et validée                |
 | 2     | Authentification et gestion des utilisateurs | Terminée et validée                |
-| 3     | Dashboard et gestion du parc machines        | Terminée, en attente de validation |
-| 4     | Compteurs et historique                      | À faire                            |
+| 3     | Dashboard et gestion du parc machines        | Terminée et validée                |
+| 4     | Compteurs et historique                      | Terminée, en attente de validation |
 | 5     | Moteur de calcul de consommation CMJN        | À faire                            |
 | 6     | Analyse PDF                                  | À faire                            |
 | 7     | Collecteur SNMP et agent Windows             | À faire                            |
@@ -86,6 +86,73 @@ Comportement en panne, vérifié sur la stack réelle :
 - **Starlette** signale la dépréciation de `httpx` pour son client de test. Cela ne concerne que les tests.
 - **Licences AGPL :** PyMuPDF et Ghostscript, prévus en Phase 6, sont sous AGPL ou sous licence commerciale Artifex. À faire vérifier par un juriste avant toute commercialisation.
 - **Aucun commit :** le dépôt git est initialisé, mais rien n'a encore été commité.
+
+## Phase 4 : Compteurs et historique
+
+### Livré
+
+- **Compteurs couleur et noir et blanc :** un relevé enregistre les deux compteurs d'une machine à un instant donné. Le compteur couleur est exigé d'une machine couleur et refusé d'une machine noir et blanc ; le total est vérifié par la base.
+- **Saisie et import :** saisie depuis la fiche d'une machine, avec le relevé précédent en repère et une alerte si un compteur baisse. Import CSV depuis la page Compteurs (en-têtes en français ou en anglais, séparateurs `;`, `,` ou tabulation, dates françaises ou ISO), avec un modèle à télécharger et le détail des lignes refusées. L'import est **idempotent** : le rejouer ne crée aucun doublon.
+- **Historique des relevés :** chaque relevé affiche son origine, son auteur, le nombre de pages depuis le précédent et ses anomalies. Un relevé erroné peut être supprimé, ce qui est tracé. Une remise à zéro du compteur se déclare, pour ne pas fausser les volumes.
+- **Volumes journaliers et mensuels :** calculés entre deux relevés et répartis à parts égales dans le temps, pour une machine (12 derniers mois) ou pour le parc (filtres par site et par type couleur). Chaque volume indique la part de la période couverte par des relevés : un jour sans relevé est inconnu, jamais compté à zéro.
+- **Comparaison des périodes :** période précédente de même durée, ou même période l'an dernier ; variation globale, par canal et par machine. Périodes prédéfinies : 30 jours, 3 mois, 12 mois, mois en cours, mois précédent, année en cours.
+- **Détection des anomalies :** compteur en baisse, pic de volume, débit au-delà du maximum constructeur, machine en service sans impression, relevé manquant. Les règles et leurs seuils sont dans un module sans base de données, testé isolément.
+- **Tableau de bord :** pages imprimées des 30 derniers jours, comparées aux 30 précédents, et anomalies de compteurs.
+
+Décisions détaillées dans [docs/architecture.md](docs/architecture.md), section « Compteurs ».
+
+### Critères d'acceptation
+
+| Critère                                        | Résultat                                                 |
+| ---------------------------------------------- | -------------------------------------------------------- |
+| Compteurs couleur et noir et blanc             | Validé, cohérence vérifiée par l'API et par la base      |
+| Historique des relevés                         | Validé, avec le volume et les anomalies de chaque relevé |
+| Volumes journaliers et mensuels                | Validé, couverture des relevés indiquée                  |
+| Comparaison des périodes                       | Validé : période précédente ou année précédente          |
+| Détection des anomalies de compteurs           | Validé : cinq règles                                     |
+| Isolation des données par entreprise           | Validé au niveau de l'API et de PostgreSQL               |
+| `build`, `typecheck`, `lint` et `test` passent | Validé : 30 tâches sur 30, sans cache                    |
+
+Détail des tests :
+
+| Paquet                 | Tests | Dont nouveaux en Phase 4 |
+| ---------------------- | ----- | ------------------------ |
+| `@arksen/api`          | 60    | 20                       |
+| `@arksen/validation`   | 41    | 5                        |
+| `@arksen/web`          | 34    | 6                        |
+| `@arksen/shared-types` | 12    | 1                        |
+| `@arksen/database`     | 2     |                          |
+| `@arksen/workers`      | 2     |                          |
+| `@arksen/collector`    | 2     |                          |
+| `@arksen/analytics`    | 1     |                          |
+
+Soit 154 tests unitaires et d'intégration, et **56 tests de bout en bout** sur la stack Docker réelle (15 nouveaux, dans `apps/api/test/e2e/meters.e2e.test.ts`), tous réussis. Ils vérifient notamment :
+
+- le calcul du volume de chaque relevé, et la répartition jour par jour sur une période (valeurs attendues calculées à la main) ;
+- les règles couleur et noir et blanc, le refus d'un relevé futur ou en double ;
+- l'import, puis son rejeu sans doublon, et l'impossibilité d'atteindre la machine d'une autre entreprise par son numéro de série ;
+- la comparaison avec la période précédente, et la détection d'une baisse de compteur et d'un dépassement du volume constructeur ;
+- l'isolation des relevés par entreprise, et la contrainte de cohérence en base, même pour le rôle système.
+
+Le moteur d'analyse a 17 tests unitaires dédiés (répartition, débordement de période, jours inconnus, regroupement mensuel, cumul du parc, chaque règle d'anomalie).
+
+Vérification de la stack (`pnpm stack:smoke`) : 11 contrôles sur 11.
+
+Vérification visuelle : page Compteurs, panneau Compteurs de la fiche machine, dialogue d'import et tableau de bord, en clair, en sombre et sur mobile, sans erreur dans la console. Données de démonstration : 189 relevés hebdomadaires générés pour l'entreprise de test `demo-interface`, avec un pic et une baisse de compteur introduits volontairement.
+
+### Écarts par rapport au plan
+
+- **Pas encore de collecte automatique :** les relevés sont saisis ou importés. L'agent de collecte (Phase 7) les enverra par la même table, avec la même idempotence (contrainte unique et identifiant externe).
+- **Module « Impressions » reporté en Phase 6 :** il concerne les travaux d'impression et leurs pages, qui arrivent avec l'analyse des fichiers. Il était marqué Phase 4 dans la navigation par erreur.
+- **Jours UTC :** les volumes sont regroupés par jour UTC, qui coïncide avec l'heure du Sénégal. Un fuseau par entreprise sera à prévoir pour d'autres pays.
+
+### Points restants
+
+- **Compteurs en pages :** une page A3 compte selon la convention de la machine (souvent pour deux). La conversion des formats viendra avec le moteur de consommation (Phase 5).
+- **Seuils d'anomalie fixes :** ils sont réglés pour tout le parc. Les rendre paramétrables par entreprise ou par modèle reste à faire.
+- **Performance :** les volumes et anomalies sont calculés à la lecture. C'est adapté à des relevés quotidiens ou hebdomadaires ; avec des relevés horaires de l'agent sur un grand parc, il faudra des agrégats précalculés.
+- **Données de test :** l'entreprise `demo-interface` porte des relevés de démonstration ; les tests de bout en bout laissent des entreprises `e2e-…`.
+- **Points des phases précédentes toujours ouverts :** voir les sections précédentes.
 
 ## Phase 3 : Dashboard et gestion du parc machines
 
@@ -232,6 +299,15 @@ Vérification dans le navigateur : redirection vers `/login` avec retour à la p
 - **Points de la Phase 1 toujours ouverts :** ESLint 10, licences AGPL de la Phase 6, aucun commit.
 
 ## Journal des modifications
+
+### 4 novembre 2026 : Phase 4
+
+- **Base de données :** migration `20261104120000_meters` : table `meter_readings`, contraintes de cohérence des compteurs, unicité par machine et par instant, identifiant externe pour l'idempotence, RLS.
+- **API :** module `meters` (historique annoté, saisie, suppression, import idempotent, volumes d'une machine et du parc, comparaison, anomalies) et moteur `meters/meter-analysis.ts`.
+- **Contrats :** `packages/shared-types/src/meters.ts`, `packages/validation/src/meters.ts`, permissions `meters:read` et `meters:manage`.
+- **Web :** fonctionnalité `features/meters` (page Compteurs, panneau de la fiche machine, saisie, import CSV et son analyseur), volumes et anomalies sur le tableau de bord ; graphiques sans animation d'entrée.
+- **Tests :** `meters.e2e.test.ts`, tests du moteur d'analyse, des périodes de comparaison, des schémas et de l'analyseur CSV.
+- **Documentation :** `docs/architecture.md` (section « Compteurs » et matrice des droits) et `docs/development.md`.
 
 ### 4 novembre 2026 : Phase 3
 

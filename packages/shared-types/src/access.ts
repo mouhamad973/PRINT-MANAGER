@@ -32,23 +32,33 @@ export const PERMISSIONS = [
   'printers:network:manage',
   /** Créer et modifier les fiches techniques propres à l'entreprise. */
   'printer-models:manage',
+  /** Consulter les compteurs, les volumes et les anomalies. */
+  'meters:read',
+  /** Saisir, importer et supprimer des relevés de compteurs. */
+  'meters:manage',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
-const TENANT_BASE: readonly Permission[] = ['tenant:read', 'sites:read', 'printers:read'];
+const TENANT_BASE: readonly Permission[] = [
+  'tenant:read',
+  'sites:read',
+  'printers:read',
+  'meters:read',
+];
 
 const FLEET_MANAGEMENT: readonly Permission[] = [
   'sites:manage',
   'printers:manage',
   'printers:network:manage',
   'printer-models:manage',
+  'meters:manage',
 ];
 
 export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
   SUPER_ADMIN: PERMISSIONS,
   CLIENT_ADMIN: [...TENANT_BASE, 'users:read', 'users:manage', 'audit:read', ...FLEET_MANAGEMENT],
   PRINT_MANAGER: [...TENANT_BASE, 'users:read', ...FLEET_MANAGEMENT],
-  TECHNICIAN: [...TENANT_BASE, 'printers:manage', 'printers:network:manage'],
+  TECHNICIAN: [...TENANT_BASE, 'printers:manage', 'printers:network:manage', 'meters:manage'],
   STOCK_MANAGER: TENANT_BASE,
   USER: TENANT_BASE,
 };
@@ -62,6 +72,8 @@ export const PERMISSION_LABELS: Partial<Record<Permission, string>> = {
   'printers:manage': 'Gérer les machines et leur statut',
   'printers:network:manage': 'Configurer le réseau et SNMP',
   'printer-models:manage': 'Gérer les fiches techniques',
+  'meters:read': 'Consulter les compteurs et les volumes',
+  'meters:manage': 'Saisir et importer les relevés',
   'users:read': 'Voir les utilisateurs',
   'users:manage': 'Gérer les utilisateurs',
   'audit:read': 'Consulter le journal d’audit',

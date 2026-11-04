@@ -58,7 +58,7 @@ L'API crée le premier Super Administrateur à son démarrage, à partir de `SUP
 
 ## Tests de bout en bout
 
-`apps/api/test/e2e` contient des tests qui visent la stack Docker démarrée (`isolation.e2e.test.ts` pour l'authentification, `fleet.e2e.test.ts` pour le parc machines), à travers le relais du frontend comme un vrai navigateur. Ils vérifient la connexion, les rôles, l'isolation entre entreprises au niveau de l'API et de PostgreSQL, la désactivation des comptes, la suspension des entreprises et la limitation des tentatives.
+`apps/api/test/e2e` contient des tests qui visent la stack Docker démarrée (`isolation.e2e.test.ts` pour l'authentification, `fleet.e2e.test.ts` pour le parc machines, `meters.e2e.test.ts` pour les compteurs), à travers le relais du frontend comme un vrai navigateur. Ils vérifient la connexion, les rôles, l'isolation entre entreprises au niveau de l'API et de PostgreSQL, la désactivation des comptes, la suspension des entreprises et la limitation des tentatives.
 
 Ils ne font pas partie de `pnpm test`, car ils écrivent de vraies données. Les entreprises qu'ils créent ont un identifiant commençant par `e2e-`. Ils lisent `SUPER_ADMIN_*`, `DATABASE_APP_URL` et `DATABASE_SYSTEM_URL` dans `.env`.
 
