@@ -1,6 +1,6 @@
 # État du projet ARKSEN PRINT MANAGER
 
-Dernière mise à jour : 4 novembre 2026.
+Dernière mise à jour : 5 novembre 2026.
 
 ## Avancement
 
@@ -10,8 +10,8 @@ Dernière mise à jour : 4 novembre 2026.
 | 2     | Authentification et gestion des utilisateurs | Terminée et validée                |
 | 3     | Dashboard et gestion du parc machines        | Terminée et validée                |
 | 4     | Compteurs et historique                      | Terminée et validée                |
-| 5     | Moteur de calcul de consommation CMJN        | Terminée, en attente de validation |
-| 6     | Analyse PDF                                  | À faire                            |
+| 5     | Moteur de calcul de consommation CMJN        | Terminée et validée                |
+| 6     | Analyse PDF                                  | Terminée, en attente de validation |
 | 7     | Collecteur SNMP et agent Windows             | À faire                            |
 | 8     | Gestion des consommables et stocks           | À faire                            |
 | 9     | Coûts, maintenance et contrats               | À faire                            |
@@ -84,8 +84,69 @@ Comportement en panne, vérifié sur la stack réelle :
 
 - **ESLint 9** est signalée obsolète par npm. Le passage à ESLint 10 reste à faire.
 - **Starlette** signale la dépréciation de `httpx` pour son client de test. Cela ne concerne que les tests.
-- **Licences AGPL :** PyMuPDF et Ghostscript, prévus en Phase 6, sont sous AGPL ou sous licence commerciale Artifex. À faire vérifier par un juriste avant toute commercialisation.
-- **Aucun commit :** le dépôt git est initialisé, mais rien n'a encore été commité.
+- **Licences AGPL :** résolu en Phase 6. PyMuPDF et Ghostscript ont été écartés au profit de PDFium (`pypdfium2`, BSD et Apache 2.0) et de LittleCMS (MIT).
+- **Aucun commit :** résolu, chaque phase est commitée et poussée.
+
+## Phase 6 : Analyse PDF
+
+### Livré
+
+- **Import de PDF** depuis la page **Analyse PDF** : dépôt ou choix du fichier (50 Mo et 500 pages au plus), machine prévue et nombre d'exemplaires facultatifs. Le fichier est analysé puis oublié ; seules ses mesures et son empreinte SHA-256 sont conservées.
+- **Analyse page par page** en Python (`services/analytics`) avec PDFium : nombre de pages, format (A5, A4, A3, SRA3, Letter, Legal, Tabloid ou personnalisé), dimensions en millimètres, orientation, page couleur ou non.
+- **Couverture CMJN** de chaque page et moyenne du document pondérée par la surface : cyan, magenta, jaune, noir et couverture cumulée, plus une couverture en niveaux de gris pour les machines noir et blanc.
+- **Méthode documentée et reproductible :** rendu sRGB par PDFium (profils ICC du document, RVB, CMJN, couleurs spéciales, transparences), puis séparation en CMJN avec un profil ICC de sortie (`ANALYTICS_CMYK_ICC_PROFILE`, LittleCMS) ou, à défaut, une séparation de référence. La couverture est la moyenne de la valeur de teinte sur la surface de la page, jamais une proportion de pixels colorés. La méthode est enregistrée avec chaque analyse.
+- **Estimation du toner** sur une machine choisie : le travail est ramené à des pages A4 équivalentes et passe par le moteur de consommation de la Phase 5 (toners, prix, calibration). Une machine noir et blanc imprime en niveaux de gris.
+- **Rapport de préproduction** (`/analyses/:id`) : document (couverture moyenne, formats, empreinte), estimation (coût du travail et par exemplaire, grammes par encre, calibration), tableau des pages avec le toner d'un exemplaire, méthode de mesure ; imprimable.
+- **Historique :** analyses, modifications et suppressions dans le journal d'audit.
+
+Méthode et décisions dans [docs/architecture.md](docs/architecture.md), section « Analyse PDF ».
+
+### Critères d'acceptation
+
+| Critère                                        | Résultat                                                                  |
+| ---------------------------------------------- | ------------------------------------------------------------------------- |
+| Import PDF                                     | Validé : multipart par le relais du frontend, 50 Mo et 500 pages au plus  |
+| Analyse page par page                          | Validé                                                                    |
+| Formats, dimensions, orientation               | Validé : 7 formats normalisés à ± 3 mm, sinon « Personnalisé »            |
+| Couverture C, M, J, N et cumulée               | Validé, par page et en moyenne pondérée par la surface                    |
+| Méthode documentée, adaptée aux profils ICC    | Validé : profil ICC de sortie configurable, séparation de référence sinon |
+| RVB, CMJN, tons directs, transparences         | Validé : un test pour chacun                                              |
+| Estimation toner                               | Validé : moteur et calibration de la Phase 5, valeurs calculées à la main |
+| Rapport de préproduction                       | Validé                                                                    |
+| `build`, `typecheck`, `lint` et `test` passent | Validé : 30 tâches sur 30, sans cache                                     |
+
+Détail des tests :
+
+| Paquet                 | Tests | Dont nouveaux en Phase 6 |
+| ---------------------- | ----- | ------------------------ |
+| `@arksen/api`          | 60    |                          |
+| `@arksen/validation`   | 53    | 4                        |
+| `@arksen/analytics`    | 68    | 26                       |
+| `@arksen/web`          | 34    |                          |
+| `@arksen/shared-types` | 12    |                          |
+| `@arksen/database`     | 2     |                          |
+| `@arksen/workers`      | 2     |                          |
+| `@arksen/collector`    | 2     |                          |
+
+Soit 233 tests unitaires et d'intégration, et **77 tests de bout en bout** sur la stack Docker réelle (9 nouveaux, dans `apps/api/test/e2e/print-jobs.e2e.test.ts`). Un PDF de trois pages (A4 à moitié cyan, A4 noire, A3 blanche) donne 12,5 % de cyan et 25 % de noir en moyenne ; dix exemplaires font 40 pages A4 équivalentes, 4 g de noir et 2 g de cyan pour un coût de 1,60, et 4,43 g de noir sur une machine noir et blanc. Les tests vérifient aussi le nom de fichier accentué, le refus d'un fichier qui n'est pas un PDF, les droits, l'isolation entre entreprises et le déclencheur de périmètre en base. Leur premier passage a révélé une erreur (création imbriquée des pages refusée par Prisma à cause de la clé étrangère composite), corrigée avant le commit.
+
+Les tests Python mesurent des PDF construits pour l'occasion : primaires, gris, page blanche, demi-page, CMJN natif, transparence à 50 %, ton direct, profil ICC, moyenne pondérée, formats et erreurs (fichier non PDF, protégé, endommagé, vide, trop long).
+
+Vérification visuelle : liste des analyses et rapport de préproduction, en clair, en sombre et sur mobile, sans erreur dans la console. Données de démonstration : une analyse « Plaquette commerciale 2027.pdf » (A4, A3 paysage et Letter) dans `demo-interface`.
+
+### Écarts par rapport au plan
+
+- **PDFium plutôt que PyMuPDF et Ghostscript,** pour éviter l'AGPL : point des phases précédentes résolu.
+- **Analyse synchrone :** l'API attend le service d'analyse (2 minutes au plus). Une file BullMQ n'apporterait rien tant que les fichiers sont limités à 50 Mo et 500 pages.
+- **Module « Impressions » reporté en Phase 9 :** le registre des travaux réellement imprimés et de leurs coûts relève des coûts d'impression.
+
+### Points restants
+
+- **Profil ICC :** aucun profil n'est fourni avec l'application (licences des profils FOGRA ou GRACoL). Il se configure par `ANALYTICS_CMYK_ICC_PROFILE`.
+- **Approximation du rendu :** les PDF en CMJN natif passent par le sRGB avant d'être séparés : un noir enrichi ou un gris en CMJN peut changer de répartition entre les encres. La surface encrée totale reste juste ; la calibration corrige l'écart propre à chaque machine.
+- **Requêtes concurrentes dans une transaction :** toujours ouvert (voir Phase 5).
+- **Données de test :** entreprises `e2e-pdf-…` laissées par les tests.
+- **Points des phases précédentes toujours ouverts :** voir les sections précédentes.
 
 ## Phase 5 : Moteur de calcul de consommation CMJN
 
@@ -371,6 +432,16 @@ Vérification dans le navigateur : redirection vers `/login` avec retour à la p
 - **Points de la Phase 1 toujours ouverts :** ESLint 10, licences AGPL de la Phase 6, aucun commit.
 
 ## Journal des modifications
+
+### 5 novembre 2026 : Phase 6
+
+- **Analyse :** `services/analytics/src/arksen_analytics/pdf_analysis.py` (rendu, séparation, couverture, formats) et `pdf_api.py` (`POST /v1/pdf/analyze`), dépendances `pypdfium2`, `numpy`, `pillow`, `python-multipart`, avec 26 tests.
+- **Base de données :** migration `20261105120000_print_jobs` : `print_jobs` et `print_job_pages`, contraintes, déclencheur de périmètre de la machine et RLS.
+- **API :** module `print-jobs` (import multipart, liste, détail, estimation, modification, suppression) et client `analysis.client.ts` ; `ConsumptionService.estimateWork` réutilise le moteur pour un travail.
+- **Contrats :** `packages/shared-types/src/print-jobs.ts`, `packages/validation/src/print-jobs.ts`, permissions `print-jobs:read` et `print-jobs:manage`.
+- **Web :** fonctionnalité `features/print-jobs` (import, liste, rapport de préproduction), routes `/analyses` et `/analyses/:id`, entrée « Analyse PDF » de la navigation, libellés du journal d'audit.
+- **Tests :** `print-jobs.e2e.test.ts`, envoi multipart dans le client de test.
+- **Documentation :** `docs/architecture.md` (section « Analyse PDF » et matrice des droits), `docs/configuration.md`, `docs/development.md`.
 
 ### 5 novembre 2026 : Phase 5
 

@@ -8,6 +8,7 @@ import { DatabaseModule } from './database/database.module.js';
 import { HealthModule } from './health/health.module.js';
 import { MeModule } from './me/me.module.js';
 import { MetersModule } from './meters/meters.module.js';
+import { PrintJobsModule } from './print-jobs/print-jobs.module.js';
 import { PrinterModelsModule } from './printer-models/printer-models.module.js';
 import { PrintersModule } from './printers/printers.module.js';
 import { RedisModule } from './redis/redis.module.js';
@@ -34,6 +35,7 @@ import { UsersModule } from './users/users.module.js';
     DashboardModule,
     MetersModule,
     ConsumptionModule,
+    PrintJobsModule,
   ],
 })
 export class AppModule {}

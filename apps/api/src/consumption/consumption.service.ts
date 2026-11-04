@@ -97,7 +97,7 @@ function sortChannels<T extends { channel: CmykChannel }>(items: T[]): T[] {
   );
 }
 
-interface PrinterContext {
+export interface PrinterContext {
   id: string;
   name: string;
   siteName: string;
@@ -645,6 +645,32 @@ export class ConsumptionService {
 
   /** Consommation d'un travail décrit par son aplat, sur une machine ou un modèle. */
   async simulate(tenantId: string, input: SimulationInput): Promise<ConsumptionSimulation> {
+    return (await this.run(tenantId, input)).simulation;
+  }
+
+  /**
+   * Consommation d'un travail mesuré (fichier PDF) sur une machine. Les pages sont des surfaces
+   * A4 ; le facteur de support est celui de la machine.
+   */
+  async estimateWork(
+    tenantId: string,
+    printerId: string,
+    work: { pages: number; colorPages: number; coverage: Record<CmykChannel, number> },
+    useCalibration: boolean,
+  ): Promise<{ simulation: ConsumptionSimulation; printer: PrinterContext }> {
+    const { simulation, target } = await this.run(tenantId, {
+      printerId,
+      ...work,
+      paperFormat: 'A4',
+      useCalibration,
+    });
+    return { simulation, printer: target };
+  }
+
+  private async run(
+    tenantId: string,
+    input: Omit<SimulationInput, 'mediaFactor'> & { mediaFactor?: number },
+  ): Promise<{ simulation: ConsumptionSimulation; target: PrinterContext }> {
     const today = isoDay(new Date());
     const range = { from: today, to: today };
     let currency: string;
@@ -701,11 +727,14 @@ export class ConsumptionService {
       : [];
     const result = (await this.engine.estimate([item, ...siblings])).get(target.id)!;
     return {
-      currency,
-      pages: input.pages,
-      colorPages,
-      channels: toChannels(result),
-      totals: toTotals(result),
+      target,
+      simulation: {
+        currency,
+        pages: input.pages,
+        colorPages,
+        channels: toChannels(result),
+        totals: toTotals(result),
+      },
     };
   }
 

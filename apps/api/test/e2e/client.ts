@@ -71,6 +71,28 @@ export class Client {
     return this.request<T>('PATCH', path, body);
   }
 
+  /** Envoi d'un fichier en multipart, comme un formulaire du navigateur. */
+  async upload<T = unknown>(
+    path: string,
+    file: { name: string; data: Buffer; type: string },
+    fields: Record<string, string> = {},
+  ): Promise<Reply<T>> {
+    const form = new FormData();
+    for (const [key, value] of Object.entries(fields)) form.append(key, value);
+    form.append('file', new Blob([new Uint8Array(file.data)], { type: file.type }), file.name);
+    const response = await fetch(`${WEB_URL}/backend${path}`, {
+      method: 'POST',
+      headers: {
+        Origin: WEB_URL,
+        'X-Forwarded-For': this.ipAddress,
+        ...(this.cookie ? { Cookie: this.cookie } : {}),
+      },
+      body: form,
+    });
+    const text = await response.text();
+    return { status: response.status, body: (text ? JSON.parse(text) : undefined) as T };
+  }
+
   async signIn(email: string, password: string): Promise<Reply> {
     return this.post('/api/auth/sign-in/email', { email, password });
   }

@@ -106,6 +106,8 @@ La matrice des rôles est définie dans le code (`packages/shared-types/src/acce
 | `meters:manage`           |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
 | `consumption:read`        |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |             |
 | `consumption:manage`      |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
+| `print-jobs:read`         |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |             |
+| `print-jobs:manage`       |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
 
 Un administrateur client ne peut ni attribuer le rôle Super Administrateur, ni modifier son propre rôle ou statut.
 
@@ -231,6 +233,29 @@ Le lissage : k = (Σ réel + m × k_ref × T̄) / (Σ théorique + m × T̄), o�
 **Toners et prix.** Les toners d'un modèle suivent sa fiche technique : catalogue Arksen ou fiche d'entreprise, avec les mêmes politiques RLS et un déclencheur qui garantit le même périmètre. Les prix d'achat sont propres à chaque entreprise, dans sa devise (`tenants.currency`, XOF par défaut). Un déclencheur refuse le prix d'un toner privé d'une autre entreprise.
 
 **Disponibilité.** Si le moteur ne répond pas, les pages de consommation affichent « Le moteur de calcul est indisponible » (HTTP 503). Il n'est joignable que par l'API, sur le réseau interne ; son port publié en développement disparaîtra en Phase 10.
+
+## Analyse PDF
+
+**Chaîne.** Le navigateur envoie le fichier en multipart à l'API (`POST /tenants/:tenantId/print-jobs`, 50 Mo au plus), qui le transmet au service d'analyse (`POST /v1/pdf/analyze`, sans état). L'API enregistre les mesures (`print_jobs`, `print_job_pages`) et l'empreinte SHA-256 du fichier, puis l'oublie : **le PDF n'est pas conservé**. L'analyse est synchrone : 500 pages au plus, à 72 ppp par défaut.
+
+**Bibliothèques.** PDFium (via `pypdfium2`, licences BSD et Apache 2.0) rend les pages ; numpy calcule ; Pillow et LittleCMS (licences HPND et MIT) appliquent un profil ICC de sortie. PyMuPDF et Ghostscript, envisagés au départ, ont été écartés : ils sont sous AGPL ou sous licence commerciale.
+
+**Méthode de mesure**, documentée et reproductible :
+
+1. **Rendu.** Chaque page est rendue en sRGB sur fond blanc. PDFium interprète les espaces de couleur du document (RVB, CMJN, profils ICC intégrés, couleurs spéciales par leur espace de substitution) ainsi que les transparences et les modes de fusion : la page mesurée est celle qui serait vue.
+2. **Séparation en CMJN.**
+   - **Avec un profil ICC de sortie** (`ANALYTICS_CMYK_ICC_PROFILE`, chemin d'un fichier `.icc` ou `.icm` dans le conteneur), la conversion sRGB → CMJN se fait avec LittleCMS, en intention perceptuelle. C'est la méthode à privilégier : le profil de la machine ou de la norme visée (FOGRA, GRACoL…).
+   - **Sans profil**, une séparation de référence est appliquée : génération du noir à 100 %, K = 1 − max(R, V, B), puis C = (1 − R − K) / (1 − K), et de même pour M et J. Elle est déterministe mais ne reproduit ni l'engraissement ni la limite d'encrage d'une vraie machine ; la calibration de chaque machine corrige l'écart.
+   - La méthode retenue est enregistrée avec chaque analyse (`pdfium-srgb/separation-reference-gcr100` ou `pdfium-srgb/icc:<profil>`).
+3. **Couverture.** La couverture d'une encre est la **moyenne de sa valeur de teinte sur toute la surface de la page**, en %. Une demi-page en aplat plein vaut 50 % ; une page entière à 20 % de teinte vaut aussi 20 %. Ce n'est jamais une proportion de pixels colorés. La couverture cumulée est la somme des quatre encres (jusqu'à 400 %).
+4. **Niveaux de gris.** Pour une machine noir et blanc, la couverture de noir d'une page est la moyenne de 1 − luminance (Rec. 709).
+5. **Page couleur** : C + M + J > 0,05 %.
+6. **Formats.** A5, A4, A3, SRA3, Letter, Legal et Tabloid, à ± 3 mm, sinon « Personnalisé » ; orientation portrait, paysage ou carrée. Le facteur de surface rapporte la page à l'A4.
+7. **Moyenne du document**, pondérée par la surface des pages.
+
+**Rapport de préproduction.** Pour une machine et un nombre d'exemplaires, l'API ramène le travail à des pages A4 équivalentes : pages = Σ surfaces × exemplaires, pages couleur = Σ surfaces des pages couleur × exemplaires. La couverture de chaque encre est la moyenne pondérée par la surface (le noir sur toutes les pages, les couleurs sur les pages couleur ; le gris sur une machine noir et blanc). Le moteur de consommation calcule alors le toner, le coût et la calibration, comme pour le simulateur. Le toner d'un exemplaire est réparti entre les pages au prorata de leur couverture × surface.
+
+**Isolation.** Les deux tables ont la RLS `tenant_isolation` ; les pages ont une clé étrangère composite (`job_id`, `tenant_id`) ; un déclencheur refuse la machine d'une autre entreprise.
 
 ## Origine des données
 

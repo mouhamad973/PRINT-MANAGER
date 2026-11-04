@@ -55,6 +55,8 @@ model Tenant {
   tonerPrices        TonerPrice[]
   calibrations       CalibrationProfile[]
   measurements       ConsumptionMeasurement[]
+  printJobs          PrintJob[]
+  printJobPages      PrintJobPage[]
 
   @@map("tenants")
 }
@@ -283,6 +285,7 @@ model Printer {
   meterReadings MeterReading[]
   calibration   CalibrationProfile?
   measurements  ConsumptionMeasurement[]
+  printJobs     PrintJob[]
 
   @@unique([tenantId, serialNumber])
   @@unique([id, tenantId])
@@ -491,4 +494,67 @@ model ConsumptionMeasurement {
 
   @@index([tenantId, printerId, channel])
   @@map("consumption_measurements")
+}
+
+// =====================================================================
+// Phase 6 : analyse PDF
+// =====================================================================
+
+/// Travail d'impression analysé avant production : un fichier PDF, sa machine prévue et ses exemplaires.
+/// Le fichier n'est pas conservé : seules ses mesures le sont.
+model PrintJob {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  tenantId       String   @map("tenant_id") @db.Uuid
+  name           String
+  fileSize       Int      @map("file_size")
+  /// Empreinte SHA-256 du fichier, pour reconnaître un fichier déjà analysé.
+  fileSha256     String   @map("file_sha256")
+  pageCount      Int      @map("page_count")
+  colorPages     Int      @map("color_pages")
+  /// Méthode de rendu et de séparation CMJN qui a produit les mesures.
+  method         String
+  dpi            Int
+  averageCyan    Decimal  @map("average_cyan") @db.Decimal(6, 3)
+  averageMagenta Decimal  @map("average_magenta") @db.Decimal(6, 3)
+  averageYellow  Decimal  @map("average_yellow") @db.Decimal(6, 3)
+  averageBlack   Decimal  @map("average_black") @db.Decimal(6, 3)
+  /// Machine prévue, facultative ; elle doit appartenir à la même entreprise (déclencheur).
+  printerId      String?  @map("printer_id") @db.Uuid
+  copies         Int      @default(1)
+  createdById    String?  @map("created_by_id")
+  createdByEmail String?  @map("created_by_email")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant  Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  printer Printer?       @relation(fields: [printerId], references: [id], onDelete: SetNull)
+  pages   PrintJobPage[]
+
+  @@unique([id, tenantId])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@map("print_jobs")
+}
+
+/// Mesures d'une page : format, dimensions et couverture CMJN (moyenne de teinte sur la surface).
+model PrintJobPage {
+  jobId           String  @map("job_id") @db.Uuid
+  tenantId        String  @map("tenant_id") @db.Uuid
+  number          Int
+  widthMm         Decimal @map("width_mm") @db.Decimal(7, 1)
+  heightMm        Decimal @map("height_mm") @db.Decimal(7, 1)
+  format          String
+  orientation     String
+  areaFactor      Decimal @map("area_factor") @db.Decimal(8, 4)
+  coverageCyan    Decimal @map("coverage_cyan") @db.Decimal(6, 3)
+  coverageMagenta Decimal @map("coverage_magenta") @db.Decimal(6, 3)
+  coverageYellow  Decimal @map("coverage_yellow") @db.Decimal(6, 3)
+  coverageBlack   Decimal @map("coverage_black") @db.Decimal(6, 3)
+  coverageGray    Decimal @map("coverage_gray") @db.Decimal(6, 3)
+  isColor         Boolean @map("is_color")
+
+  tenant Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  job    PrintJob @relation(fields: [jobId, tenantId], references: [id, tenantId], onDelete: Cascade)
+
+  @@id([jobId, number])
+  @@map("print_job_pages")
 }

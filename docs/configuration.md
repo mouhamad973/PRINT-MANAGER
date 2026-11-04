@@ -77,9 +77,12 @@ Dans Docker, le fichier Compose construit ces variables. Hors Docker, elles vien
 | API       | `SUPER_ADMIN_*`              | Non         | Premier Super Administrateur                  |
 | API       | `API_PORT`                   | Non         | Port d'écoute, 4000 par défaut                |
 | Workers   | `REDIS_URL`                  | Oui         | Connexion Redis                               |
+| Analyse   | `ANALYTICS_CMYK_ICC_PROFILE` | Non         | Profil ICC de sortie pour l'analyse PDF       |
 | Web       | `API_INTERNAL_URL`           | Non         | Adresse de l'API, lue à l'exécution           |
 | Migration | `DATABASE_URL`               | Oui         | Connexion du propriétaire de la base          |
 | Migration | `APP_DB_PASSWORD`            | Oui         | Mot de passe appliqué au rôle `arksen_app`    |
 | Migration | `SYSTEM_DB_PASSWORD`         | Oui         | Mot de passe appliqué au rôle `arksen_system` |
 
 L'API et les workers refusent de démarrer si une variable obligatoire manque ou est invalide.
+
+`ANALYTICS_CMYK_ICC_PROFILE` est le chemin, dans le conteneur d'analyse, d'un profil ICC CMJN (`.icc` ou `.icm`) : il faut monter le fichier dans le conteneur. Sans lui, l'analyse PDF applique la séparation de référence décrite dans [architecture.md](architecture.md), section « Analyse PDF ». Un profil illisible fait échouer les analyses avec un message explicite.

@@ -8,5 +8,6 @@ import { EngineClient } from './engine.client.js';
   imports: [AuditModule],
   controllers: [CatalogTonersController, ConsumptionController],
   providers: [ConsumptionService, EngineClient],
+  exports: [ConsumptionService],
 })
 export class ConsumptionModule {}

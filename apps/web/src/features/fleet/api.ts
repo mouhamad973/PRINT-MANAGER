@@ -1,4 +1,7 @@
 import type {
+  PrintJob,
+  PrintJobEstimate,
+  PrintJobSummary,
   ConsumptionSimulation,
   FleetConsumption,
   PrinterConsumptionDetail,
@@ -38,6 +41,8 @@ export const fleetKeys = {
     ['fleet', tenantId, 'consumption', params] as const,
   toners: (tenantId: string | null, modelId: string) =>
     ['fleet', tenantId ?? 'catalog', 'toners', modelId] as const,
+  jobs: (tenantId: string, params: object = {}) => ['fleet', tenantId, 'jobs', params] as const,
+  job: (tenantId: string, jobId: string) => ['fleet', tenantId, 'job', jobId] as const,
 };
 
 type Params = Record<string, string | number | undefined>;
@@ -83,6 +88,14 @@ export const fleetApi = {
   toners: (tenantId: string | null, modelId: string) =>
     apiFetch<TonerSpec[]>(
       `${tenantId ? `/tenants/${tenantId}` : ''}/printer-models/${modelId}/toners`,
+    ),
+  jobs: (tenantId: string, params: Params = {}) =>
+    apiFetch<Page<PrintJobSummary>>(`/tenants/${tenantId}/print-jobs${queryString(params)}`),
+  job: (tenantId: string, jobId: string) =>
+    apiFetch<PrintJob>(`/tenants/${tenantId}/print-jobs/${jobId}`),
+  jobEstimate: (tenantId: string, jobId: string, params: Params) =>
+    apiFetch<PrintJobEstimate>(
+      `/tenants/${tenantId}/print-jobs/${jobId}/estimate${queryString(params)}`,
     ),
   simulate: (tenantId: string, body: unknown) =>
     apiFetch<ConsumptionSimulation>(`/tenants/${tenantId}/consumption/simulate`, {

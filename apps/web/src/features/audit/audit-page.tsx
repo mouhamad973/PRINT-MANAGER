@@ -57,6 +57,9 @@ export const ACTION_LABELS: Record<string, string> = {
   'consumption.calibration_updated': 'Paramètres de calcul modifiés',
   'consumption.measurement_created': 'Consommation réelle saisie',
   'consumption.measurement_deleted': 'Consommation réelle supprimée',
+  'print_job.analyzed': 'Fichier PDF analysé',
+  'print_job.updated': 'Analyse PDF modifiée',
+  'print_job.deleted': 'Analyse PDF supprimée',
 };
 
 function describeTarget(entry: AuditLogEntry): string {

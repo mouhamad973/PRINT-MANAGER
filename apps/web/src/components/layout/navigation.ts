@@ -79,8 +79,8 @@ export const NAVIGATION: NavGroup[] = [
         permission: 'printers:read',
       },
       { label: 'Compteurs', icon: Gauge, href: '/meters', permission: 'meters:read' },
-      // Travaux d'impression : ils arrivent avec l'analyse des fichiers (phase 6).
-      { label: 'Impressions', icon: ClipboardList, phase: 6 },
+      // Registre des travaux d'impression et de leurs coûts réels (phase 9).
+      { label: 'Impressions', icon: ClipboardList, phase: 9 },
     ],
   },
   {
@@ -93,7 +93,7 @@ export const NAVIGATION: NavGroup[] = [
         href: '/consumption',
         permission: 'consumption:read',
       },
-      { label: 'Analyse PDF', icon: FileSearch, phase: 6 },
+      { label: 'Analyse PDF', icon: FileSearch, href: '/analyses', permission: 'print-jobs:read' },
     ],
   },
   {

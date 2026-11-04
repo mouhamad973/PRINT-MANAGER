@@ -10,6 +10,12 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
     "uvicorn>=0.32",
+    # Analyse PDF : licences permissives (PDFium BSD-3, pypdfium2 Apache-2.0/BSD-3,
+    # NumPy BSD-3, Pillow HPND avec LittleCMS MIT), à la place de PyMuPDF ou Ghostscript (AGPL).
+    "pypdfium2>=4.30",
+    "numpy>=2.0",
+    "pillow>=11.0",
+    "python-multipart>=0.0.18",
 ]
 
 [project.optional-dependencies]
@@ -36,3 +42,8 @@ select = ["E", "F", "I", "B", "UP"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
+
+# pypdfium2 ne publie pas d'annotations de types.
+[[tool.mypy.overrides]]
+module = ["pypdfium2", "pypdfium2.*"]
+ignore_missing_imports = true

@@ -73,3 +73,17 @@ export function queryString(params: Record<string, string | number | undefined>)
 export function errorMessage(error: unknown, fallback = 'Enregistrement impossible.'): string {
   return error instanceof ApiError ? error.message : fallback;
 }
+
+/** Envoi d'un formulaire multipart (fichier) : le navigateur fixe lui-même l'en-tête et ses limites. */
+export async function apiUpload<T>(path: string, form: FormData): Promise<T> {
+  const response = await fetch(`/backend/api/v1${path}`, {
+    method: 'POST',
+    body: form,
+    credentials: 'same-origin',
+    cache: 'no-store',
+  });
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+  return (await response.json()) as T;
+}
