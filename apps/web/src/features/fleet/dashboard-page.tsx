@@ -52,9 +52,9 @@ function share(part: number, total: number): string {
 }
 
 /** Indicateurs du cahier des charges qui arrivent avec les phases suivantes : annoncés, jamais simulés. */
-const UPCOMING = [
-  { label: 'Rapports PDF, Excel et CSV', phase: 10 },
-  { label: 'Statistiques avancées et rentabilité par client', phase: 10 },
+const REPORT_LINKS = [
+  { label: 'Rapports PDF, Excel et CSV', detail: 'Production, consommation, coûts, stocks' },
+  { label: 'Statistiques et rentabilité', detail: 'Tendances mensuelles et marge par client' },
 ];
 
 function SitesChart({ data }: { data: FleetDashboard['bySite'] }) {
@@ -506,14 +506,23 @@ function Dashboard({ tenantId }: { tenantId: string }) {
         </Panel>
 
         <Panel>
-          <PanelHeader title="Indicateurs à venir" description="Livrés avec les phases suivantes" />
-          <ul className="space-y-3 px-5 pb-6">
-            {UPCOMING.map((item) => (
-              <li key={item.label} className="flex items-start justify-between gap-3 text-[13px]">
-                <span className="text-muted-foreground">{item.label}</span>
-                <span className="shrink-0 rounded-full border border-border px-1.5 text-[11px] leading-5 font-medium text-muted-foreground tabular-nums">
-                  P{item.phase}
-                </span>
+          <PanelHeader title="Rapports" description="Exports à transmettre et tendances du parc" />
+          <ul className="space-y-1 px-3 pb-4">
+            {REPORT_LINKS.map((item) => (
+              <li key={item.label}>
+                <Link
+                  href={href('/rapports')}
+                  className="flex items-center justify-between gap-3 rounded-xl px-2 py-2 text-[13px] hover:bg-muted"
+                >
+                  <span>
+                    <span className="font-medium">{item.label}</span>
+                    <span className="block text-muted-foreground">{item.detail}</span>
+                  </span>
+                  <ArrowRight
+                    className="size-4 shrink-0 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                </Link>
               </li>
             ))}
           </ul>

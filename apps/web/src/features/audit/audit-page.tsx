@@ -2,8 +2,10 @@
 
 import type { AuditLogEntry, Page } from '@arksen/shared-types';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { Download, LoaderCircle } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { PageHeader } from '@/components/layout/page-header';
+import { Button } from '@/components/ui/button';
 import { FormError } from '@/components/ui/field';
 import { Pagination } from '@/components/ui/pagination';
 import { Panel } from '@/components/ui/panel';
@@ -17,8 +19,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { lastDays, PeriodPicker, type Period } from '@/features/operations/ops-ui';
 import { useSession } from '@/features/session/session-provider';
-import { apiFetch, queryString } from '@/lib/api';
+import { apiDownload, apiFetch, errorMessage, queryString } from '@/lib/api';
 import { formatDateTime } from '@/lib/format';
 
 const PAGE_SIZE = 50;
@@ -99,6 +102,9 @@ export const ACTION_LABELS: Record<string, string> = {
   'maintenance_plan.updated': 'Plan de maintenance modifié',
   'print_job.printed': 'Impression enregistrée',
   'print_job.unprinted': 'Impression retirée du registre',
+  'report.exported': 'Rapport exporté',
+  'audit.exported': 'Journal d’audit exporté',
+  'system.retention_applied': 'Politique de conservation appliquée',
 };
 
 function describeTarget(entry: AuditLogEntry): string {
@@ -107,6 +113,42 @@ function describeTarget(entry: AuditLogEntry): string {
   const name = entry.metadata?.name;
   if (typeof name === 'string') return name;
   return '—';
+}
+
+/** Export CSV du journal sur une période, pour un auditeur ou un archivage externe. */
+export function AuditExport({ path }: { path: string }) {
+  const [period, setPeriod] = useState<Period>(lastDays(30));
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function exportCsv() {
+    setPending(true);
+    setError(null);
+    try {
+      await apiDownload(`${path}/export${queryString({ ...period })}`, 'arksen-journal.csv');
+    } catch (failure) {
+      setError(errorMessage(failure, 'L’export a échoué.'));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <PeriodPicker value={period} onChange={setPeriod} />
+        <Button variant="secondary" disabled={pending} onClick={() => void exportCsv()}>
+          {pending ? (
+            <LoaderCircle className="animate-spin" aria-hidden="true" />
+          ) : (
+            <Download aria-hidden="true" />
+          )}
+          Exporter en CSV
+        </Button>
+      </div>
+      {error && <FormError message={error} />}
+    </div>
+  );
 }
 
 export function AuditPage() {
@@ -134,10 +176,11 @@ export function AuditPage() {
         title="Journal d’audit"
         description={
           platform
-            ? 'Toutes les actions sensibles de la plateforme, toutes entreprises confondues. Le journal ne peut être ni modifié ni effacé.'
-            : `Actions sensibles réalisées dans ${current.tenant?.name}. Le journal ne peut être ni modifié ni effacé.`
+            ? 'Toutes les actions sensibles de la plateforme, toutes entreprises confondues. Le journal ne peut pas être modifié, et il est conservé un an au moins.'
+            : `Actions sensibles réalisées dans ${current.tenant?.name}. Le journal ne peut pas être modifié, et il est conservé un an au moins.`
         }
       />
+      <AuditExport path={path} />
       <SearchInput
         label="Rechercher dans le journal"
         placeholder="Action ou adresse e-mail"

@@ -9,7 +9,7 @@ import httpx
 import pytest
 
 from arksen_collector.agent import Agent
-from arksen_collector.config import ConfigStore
+from arksen_collector.config import ConfigError, ConfigStore
 from arksen_collector.store import Event
 from arksen_collector.sync import AgentUnauthorized
 from tests.fake_server import FakeServer
@@ -145,4 +145,22 @@ def test_wrong_enrollment_code_is_refused(tmp_path: Path) -> None:
     agent = Agent(ConfigStore(tmp_path / "home"), transport=server.transport())
     with pytest.raises(AgentUnauthorized):
         agent.enroll("http://localhost:3000", "ZZZZ-ZZZZ-ZZZZ-ZZZZ")
+    assert not agent.settings.enrolled
+
+
+def test_enrollment_keeps_the_on_premise_authority(tmp_path: Path) -> None:
+    server = FakeServer()
+    authority = tmp_path / "ca.pem"
+    authority.write_text("-----BEGIN CERTIFICATE-----\n", encoding="utf-8")
+    agent = Agent(ConfigStore(tmp_path / "home"), transport=server.transport())
+    agent.enroll("http://localhost:3000", server.code, ca_file=str(authority))
+    assert agent.settings.enrolled
+    assert agent.settings.ca_file == str(authority)
+
+
+def test_enrollment_refuses_a_missing_authority(tmp_path: Path) -> None:
+    server = FakeServer()
+    agent = Agent(ConfigStore(tmp_path / "home"), transport=server.transport())
+    with pytest.raises(ConfigError):
+        agent.enroll("http://localhost:3000", server.code, ca_file=str(tmp_path / "absent.pem"))
     assert not agent.settings.enrolled

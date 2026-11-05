@@ -33,7 +33,7 @@ Pour constituer le parc d'une entreprise, dans l'ordre :
 2. vérifiez que le **catalogue Arksen** (Fiches techniques) contient les modèles utilisés, ou créez une fiche propre à l'entreprise ;
 3. ajoutez les **machines**, puis renseignez leur configuration réseau et SNMP depuis leur fiche.
 
-Le tableau de bord se remplit à mesure. La connectivité des machines reste « non mesurée » jusqu'à l'agent de collecte (Phase 7).
+Le tableau de bord se remplit à mesure. Installez ensuite l'agent de collecte sur le réseau du client ([docs/collector.md](docs/collector.md)) pour relever les compteurs et les niveaux de toner en SNMP.
 
 Pour vérifier la stack de bout en bout, avec Node.js et pnpm installés :
 
@@ -46,6 +46,10 @@ Pour vérifier l'authentification et l'isolation entre entreprises sur la stack 
 ```bash
 pnpm --filter @arksen/api test:e2e
 ```
+
+## Production
+
+Cette pile de développement publie la base et l'API sur l'hôte : elle ne sert pas en production. Pour une installation Cloud ou On-Premise (HTTPS, sauvegardes, aucun port interne exposé), suivez [docs/deployment.md](docs/deployment.md). La sécurité, le journal d'audit et la conservation des données sont décrits dans [docs/security.md](docs/security.md).
 
 ## Développement
 

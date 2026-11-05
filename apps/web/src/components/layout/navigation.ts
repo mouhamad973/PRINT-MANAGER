@@ -136,7 +136,7 @@ export const NAVIGATION: NavGroup[] = [
         href: '/interventions',
         permission: 'interventions:read',
       },
-      { label: 'Rapports', icon: FileBarChart, phase: 10 },
+      { label: 'Rapports', icon: FileBarChart, href: '/rapports', permission: 'meters:read' },
     ],
   },
   {
@@ -150,7 +150,12 @@ export const NAVIGATION: NavGroup[] = [
         tenantScoped: true,
       },
       { label: 'Journal d’audit', icon: ShieldCheck, href: '/audit', permission: 'audit:read' },
-      { label: 'Administration système', icon: Settings, phase: 10 },
+      {
+        label: 'Administration système',
+        icon: Settings,
+        href: '/administration',
+        permission: 'platform:system:manage',
+      },
       { label: 'Design system', icon: Swatches, href: '/design-system' },
     ],
   },

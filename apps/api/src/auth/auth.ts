@@ -9,15 +9,13 @@ import type { AppConfig } from '../config/app-config.js';
 
 export const AUTH = Symbol('AUTH');
 
-/** Proxys dont l'en-tête X-Forwarded-For est cru : réseaux privés (conteneurs) et boucle locale. */
-const TRUSTED_PROXIES = [
-  '127.0.0.0/8',
-  '10.0.0.0/8',
-  '172.16.0.0/12',
-  '192.168.0.0/16',
-  '::1/128',
-  'fc00::/7',
-];
+/**
+ * Adresse du client, résolue par Express (pair TCP et proxys de confiance) puis recopiée dans cet
+ * en-tête avant Better Auth (voir app.setup.ts). Better Auth ne voit pas le pair TCP : lui faire
+ * relire X-Forwarded-For rejetterait l'adresse privée d'un poste du réseau local (On-Premise),
+ * et la limitation des tentatives retomberait sur un compteur commun à tous les postes.
+ */
+export const CLIENT_IP_HEADER = 'x-arksen-client-ip';
 
 const SESSION_DURATION_SECONDS = 12 * 60 * 60;
 
@@ -89,7 +87,7 @@ export function createAuth(config: AppConfig, systemPrisma: PrismaClient, audit:
     },
     advanced: {
       cookiePrefix: 'arksen',
-      ipAddress: { ipAddressHeaders: ['x-forwarded-for'], trustedProxies: TRUSTED_PROXIES },
+      ipAddress: { ipAddressHeaders: [CLIENT_IP_HEADER] },
       database: { generateId: () => randomUUID() },
     },
     databaseHooks: {

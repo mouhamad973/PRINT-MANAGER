@@ -19,6 +19,25 @@ describe('parseEnv', () => {
     expect(env.NODE_ENV).toBe('development');
   });
 
+  it('applique les durées de conservation par défaut', () => {
+    const env = parseEnv(apiEnvSchema, validApiEnv);
+    expect(env.RETENTION_AUDIT_DAYS).toBe(1095);
+    expect(env.RETENTION_AGENT_EVENTS_DAYS).toBe(180);
+    expect(env.RETENTION_SUPPLY_LEVELS_DAYS).toBe(730);
+    expect(
+      parseEnv(apiEnvSchema, { ...validApiEnv, RETENTION_ALERTS_DAYS: '' }).RETENTION_ALERTS_DAYS,
+    ).toBe(365);
+  });
+
+  it('garde le journal d’audit un an au moins', () => {
+    expect(
+      parseEnv(apiEnvSchema, { ...validApiEnv, RETENTION_AUDIT_DAYS: '400' }).RETENTION_AUDIT_DAYS,
+    ).toBe(400);
+    expect(() => parseEnv(apiEnvSchema, { ...validApiEnv, RETENTION_AUDIT_DAYS: '90' })).toThrow(
+      /RETENTION_AUDIT_DAYS/,
+    );
+  });
+
   it('convertit le port en nombre', () => {
     expect(parseEnv(apiEnvSchema, { ...validApiEnv, API_PORT: '4100' }).API_PORT).toBe(4100);
   });

@@ -11,6 +11,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -87,14 +88,29 @@ class Agent:
 
     # -- Enregistrement ------------------------------------------------------------------------
 
-    def enroll(self, server_url: str, code: str, *, allow_insecure_http: bool = False) -> None:
-        """Échange le code contre un jeton et l'enregistre, protégé, dans la configuration."""
+    def enroll(
+        self,
+        server_url: str,
+        code: str,
+        *,
+        allow_insecure_http: bool = False,
+        ca_file: str | None = None,
+    ) -> None:
+        """Échange le code contre un jeton et l'enregistre, protégé, dans la configuration.
+
+        `ca_file` : certificat de l'autorité d'un serveur On-Premise, à faire confiance en plus
+        des autorités de Windows.
+        """
         check_server_url(server_url, allow_insecure_http)
         if not server_url:
             raise ConfigError("Saisissez l'adresse du serveur.")
         candidate = self.config.load()
         candidate.server_url = server_url.rstrip("/")
         candidate.allow_insecure_http = allow_insecure_http
+        if ca_file is not None:
+            if ca_file and not Path(ca_file).is_file():
+                raise ConfigError(f"Certificat introuvable : {ca_file}")
+            candidate.ca_file = ca_file
         client = ServerClient(candidate, transport=self._transport)
         try:
             result = client.enroll(code)

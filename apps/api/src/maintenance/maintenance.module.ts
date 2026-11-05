@@ -10,5 +10,6 @@ import { MaintenanceService } from './maintenance.service.js';
   imports: [AuditModule, AlertsModule],
   controllers: [MaintenanceController],
   providers: [MaintenanceService, MaintenanceScheduler],
+  exports: [MaintenanceService],
 })
 export class MaintenanceModule {}

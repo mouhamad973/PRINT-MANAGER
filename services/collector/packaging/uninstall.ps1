@@ -1,4 +1,4 @@
-# Désinstalle le service ARKSEN Collector. Les données (ProgramData\Arksen\Collector) sont
+﻿# Désinstalle le service ARKSEN Collector. Les données (ProgramData\Arksen\Collector) sont
 # conservées : elles peuvent contenir des relevés pas encore synchronisés.
 param([string]$Destination = "$env:ProgramFiles\Arksen\Collector")
 $ErrorActionPreference = 'Stop'

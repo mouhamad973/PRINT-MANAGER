@@ -93,6 +93,22 @@ export class Client {
     return { status: response.status, body: (text ? JSON.parse(text) : undefined) as T };
   }
 
+  /** Téléchargement d'un fichier : corps brut et en-têtes. */
+  async download(path: string): Promise<{ status: number; headers: Headers; data: Buffer }> {
+    const response = await fetch(`${WEB_URL}/backend${path}`, {
+      headers: {
+        Origin: WEB_URL,
+        'X-Forwarded-For': this.ipAddress,
+        ...(this.cookie ? { Cookie: this.cookie } : {}),
+      },
+    });
+    return {
+      status: response.status,
+      headers: response.headers,
+      data: Buffer.from(await response.arrayBuffer()),
+    };
+  }
+
   async signIn(email: string, password: string): Promise<Reply> {
     return this.post('/api/auth/sign-in/email', { email, password });
   }

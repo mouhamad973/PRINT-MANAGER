@@ -20,6 +20,8 @@ export const PERMISSIONS = [
   'audit:read',
   /** Gérer le catalogue Arksen des fiches techniques, partagé par toutes les entreprises. */
   'platform:catalog:manage',
+  /** Administrer le système : conservation des données, export du journal d'audit. */
+  'platform:system:manage',
   /** Consulter les sites de l'entreprise. */
   'sites:read',
   /** Créer, modifier et supprimer les sites. */

@@ -1,0 +1,7 @@
+# Installation On-Premise : serveur de l'entreprise, réseau local, sans accès Internet requis.
+# Le certificat est signé par une autorité locale ARKSEN créée au premier démarrage ; son
+# certificat (ca.pem) s'installe sur les postes et dans l'agent Windows (docs/deployment.md).
+services:
+  api:
+    environment:
+      DEPLOYMENT_MODE: on-premise

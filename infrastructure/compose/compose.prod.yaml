@@ -1,0 +1,222 @@
+# Pile de production d'ARKSEN PRINT MANAGER. Ne s'utilise jamais seule : on lui ajoute
+# compose.cloud.yaml ou compose.onprem.yaml (voir docs/deployment.md).
+#
+#   docker compose --env-file .env.production \
+#     -f infrastructure/compose/compose.prod.yaml \
+#     -f infrastructure/compose/compose.onprem.yaml up -d --build
+#
+# Différences avec la pile de développement : seul nginx publie des ports (80 et 443) ;
+# PostgreSQL, Redis, l'analytics, l'API et le frontend ne sont joignables que sur le réseau
+# interne. Un service « backup » sauvegarde la base chaque jour.
+name: arksen-prod
+
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 15s
+  timeout: 5s
+  retries: 12
+  start_period: 20s
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 20m
+    max-file: '5'
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER manquant}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD manquant}
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB manquant}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    shm_size: 256m
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      <<: *healthcheck-defaults
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    logging: *logging
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD:?REDIS_PASSWORD manquant}
+      - --maxmemory-policy
+      - noeviction
+      - --appendonly
+      - 'yes'
+    volumes:
+      - redis-data:/data
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      <<: *healthcheck-defaults
+
+  migrate:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/api.Dockerfile
+      target: migrate
+    logging: *logging
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?APP_DB_PASSWORD manquant}
+      SYSTEM_DB_PASSWORD: ${SYSTEM_DB_PASSWORD:?SYSTEM_DB_PASSWORD manquant}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  analytics:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/analytics.Dockerfile
+    restart: unless-stopped
+    logging: *logging
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
+      <<: *healthcheck-defaults
+
+  api:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/api.Dockerfile
+      target: runner
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      NODE_ENV: production
+      # Fixé par compose.cloud.yaml ou compose.onprem.yaml : sans eux, l'API refuse de démarrer.
+      DEPLOYMENT_MODE: ''
+      API_PORT: 4000
+      DATABASE_APP_URL: postgresql://arksen_app:${APP_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      DATABASE_SYSTEM_URL: postgresql://arksen_system:${SYSTEM_DB_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      ANALYTICS_URL: http://analytics:8000
+      PUBLIC_WEB_URL: ${PUBLIC_WEB_URL:?PUBLIC_WEB_URL manquant (https://...)}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET manquant}
+      CREDENTIALS_ENCRYPTION_KEY: ${CREDENTIALS_ENCRYPTION_KEY:?CREDENTIALS_ENCRYPTION_KEY manquant}
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-}
+      SUPER_ADMIN_NAME: ${SUPER_ADMIN_NAME:-}
+      RETENTION_AUDIT_DAYS: ${RETENTION_AUDIT_DAYS:-}
+      RETENTION_AGENT_EVENTS_DAYS: ${RETENTION_AGENT_EVENTS_DAYS:-}
+      RETENTION_SUPPLY_LEVELS_DAYS: ${RETENTION_SUPPLY_LEVELS_DAYS:-}
+      RETENTION_ALERTS_DAYS: ${RETENTION_ALERTS_DAYS:-}
+      RETENTION_SYNC_LOGS_DAYS: ${RETENTION_SYNC_LOGS_DAYS:-}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      analytics:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:4000/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      <<: *healthcheck-defaults
+
+  workers:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/workers.Dockerfile
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      NODE_ENV: production
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - |
+          import('ioredis').then(async ({ Redis }) => {
+            const redis = new Redis(process.env.REDIS_URL, { lazyConnect: true, maxRetriesPerRequest: 1 });
+            await redis.connect();
+            const beat = await redis.get('arksen:workers:heartbeat');
+            redis.disconnect();
+            process.exit(beat ? 0 : 1);
+          }).catch(() => process.exit(1));
+      <<: *healthcheck-defaults
+
+  web:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/web.Dockerfile
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      NODE_ENV: production
+      API_INTERNAL_URL: http://api:4000
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/healthz').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      <<: *healthcheck-defaults
+
+  # Seul service exposé : HTTPS, redirection HTTP, en-têtes de sécurité.
+  nginx:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/nginx.Dockerfile
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      SERVER_NAME: ${SERVER_NAME:?SERVER_NAME manquant (nom DNS du serveur)}
+      PUBLIC_WEB_URL: ${PUBLIC_WEB_URL}
+      SERVER_IP: ${SERVER_IP:-}
+    ports:
+      - '${HTTP_PORT:-80}:80'
+      - '${HTTPS_PORT:-443}:443'
+    volumes:
+      - tls-certs:/etc/nginx/certs
+      - acme-webroot:/var/www/acme
+    depends_on:
+      web:
+        condition: service_healthy
+
+  backup:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/backup.Dockerfile
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+    volumes:
+      # Dossier de l'hôte : à recopier hors du serveur (NAS, stockage objet).
+      - ${BACKUP_DIR:-../../backups}:/backups
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-data:
+  redis-data:
+  tls-certs:
+  acme-webroot:

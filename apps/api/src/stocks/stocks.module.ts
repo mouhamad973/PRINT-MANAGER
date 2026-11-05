@@ -12,5 +12,6 @@ import { StocksService } from './stocks.service.js';
   imports: [AuditModule, AlertsModule, ConsumptionModule],
   controllers: [StocksController],
   providers: [StocksService, ReplacementsService, ForecastScheduler],
+  exports: [StocksService],
 })
 export class StocksModule {}

@@ -147,13 +147,15 @@ L'isolation repose sur trois couches indépendantes : une erreur dans l'une ne s
 
 Les événements sensibles sont enregistrés dans `audit_logs` : connexions réussies, échouées ou refusées, changements de mot de passe, créations et modifications d'entreprises et d'utilisateurs. Un déclencheur PostgreSQL interdit toute modification ou suppression, y compris pour les rôles applicatifs. Un échec d'écriture du journal est journalisé, mais n'interrompt jamais l'action de l'utilisateur.
 
-La politique de conservation, et donc la purge des événements anciens, est à définir en Phase 10.
+Le journal est conservé trois ans par défaut, un an au moins. Seule la fonction `purge_audit_logs`, exécutable par le seul rôle `arksen_system`, peut supprimer des entrées, et le déclencheur refuse toute suppression d'une entrée de moins d'un an. Voir [security.md](security.md).
 
 ## Adresse IP des clients
 
-Better Auth limite les tentatives par adresse IP, lue dans `X-Forwarded-For`. Seuls les proxys des réseaux privés et de la boucle locale sont crus, et la chaîne est lue de droite à gauche jusqu'au premier saut non fiable.
+Express résout l'adresse du client à partir du pair TCP et de `X-Forwarded-For` : seuls les proxys des réseaux privés et de la boucle locale sont crus, et la chaîne est lue de droite à gauche jusqu'au premier saut non fiable. Cette adresse sert au journal d'audit, et elle est recopiée dans l'en-tête interne `x-arksen-client-ip` (toujours écrasé), seul lu par Better Auth pour limiter les tentatives de connexion.
 
-En développement, sans proxy frontal, un poste du réseau local peut fixer son propre `X-Forwarded-For`. En production, le proxy frontal (Nginx, Phase 10) doit écraser cet en-tête avec l'adresse réelle du client.
+Better Auth ne voit pas le pair TCP. Lui faire relire `X-Forwarded-For` avec une liste de proxys de confiance rejetterait l'adresse privée d'un poste du réseau local (On-Premise) : l'adresse serait absente du journal, et tous les postes partageraient un seul compteur de tentatives.
+
+En développement, sans proxy frontal, un poste du réseau local peut fixer son propre `X-Forwarded-For`. En production, Nginx remplace cet en-tête par l'adresse réelle du client (`proxy_set_header X-Forwarded-For $remote_addr`), et ni le frontend ni l'API ne sont joignables sans lui.
 
 ## Parc machines
 
@@ -405,6 +407,22 @@ Des contraintes garantissent que les pages supplémentaires et le total découle
 
 - Son coût de revient est figé à l'enregistrement : le toner vient de l'estimation du moteur CMJN, le papier des réglages de la machine.
 - Le registre des impressions en donne la marge.
+
+## Rapports et statistiques
+
+**Un modèle, trois rendus.** Chaque rapport est d'abord construit comme un `ReportDocument` (`apps/api/src/reports/report-model.ts`) : des sections faites d'indicateurs, de colonnes typées (texte, entier, décimal, montant, pourcentage, date) et de lignes. Trois moteurs le rendent ensuite :
+
+- **CSV** : séparateur point-virgule, virgule décimale et BOM UTF-8, pour un tableur réglé en français. Une valeur qui commence par `=`, `+`, `-` ou `@` est préfixée d'une apostrophe : un fichier exporté ne peut pas injecter de formule.
+- **Excel** (exceljs) : une feuille par section, en-tête figé, filtres, formats numériques réels, et une feuille « Méthode » qui rappelle l'origine des chiffres.
+- **PDF** (pdfkit) : A4 paysage, indicateurs en tête, tableaux paginés dont l'en-tête se répète, pied « page X / Y ».
+
+**Les rapports.** Les neuf rapports du cahier des charges (§ 14) sont décrits dans `REPORTS` (`shared-types/src/reports.ts`), avec les permissions qu'ils exigent toutes. La route `GET /tenants/:id/reports/:type?format=&from=&to=&siteId=` vérifie ces permissions, refuse une période future ou de plus de deux ans, et inscrit chaque export au journal d'audit (`report.exported`). Les rapports réutilisent les services métier (consommation, coûts, stocks, maintenance, contrats) : un chiffre exporté est le chiffre affiché à l'écran.
+
+**Statistiques.** `GET /tenants/:id/statistics?months=` (3 à 12 mois) donne, mois par mois, les pages, le coût de revient et le chiffre d'affaires des relevés émis, les cinq machines les plus actives et la rentabilité par contrat (relevés émis face au coût des machines du contrat).
+
+## Déploiement
+
+Une seule image par service sert les deux modes ; `DEPLOYMENT_MODE` ne change que l'affichage et la documentation. En production (`infrastructure/compose/compose.prod.yaml`), Nginx est le seul service publié : il termine le TLS, redirige HTTP vers HTTPS, pose HSTS et remplace `X-Forwarded-For`. Le frontend pose lui-même la politique de contenu (CSP) et les autres en-têtes de sécurité. Le service `backup` sauvegarde la base chaque jour. Voir [deployment.md](deployment.md).
 
 ## Origine des données
 

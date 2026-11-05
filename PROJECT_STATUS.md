@@ -1,6 +1,6 @@
 # État du projet ARKSEN PRINT MANAGER
 
-Dernière mise à jour : 8 novembre 2026.
+Dernière mise à jour : 5 novembre 2026 (Phase 10).
 
 ## Avancement
 
@@ -14,8 +14,8 @@ Dernière mise à jour : 8 novembre 2026.
 | 6     | Analyse PDF                                  | Terminée et validée                |
 | 7     | Collecteur SNMP et agent Windows             | Terminée et validée                |
 | 8     | Gestion des consommables et stocks           | Terminée et validée                |
-| 9     | Coûts, maintenance et contrats               | Terminée, en attente de validation |
-| 10    | Rapports et déploiement commercial           | À faire                            |
+| 9     | Coûts, maintenance et contrats               | Terminée et validée                |
+| 10    | Rapports et déploiement commercial           | Terminée, en attente de validation |
 
 ## Phase 1 : Architecture et configuration
 
@@ -78,7 +78,7 @@ Comportement en panne, vérifié sur la stack réelle :
 
 - **Node.js 24 au lieu de 26 :** Prisma 7.10 ne supporte que les versions 20, 22 et 24. Les images Docker et `.nvmrc` utilisent Node 24. La machine de développement a Node 26, sur lequel tout fonctionne malgré l'avertissement de Prisma.
 - **Ports publiés 15432 et 16379 :** des installations locales de PostgreSQL occupent déjà les ports 5432 et 5433, et Redis le 6379.
-- **Nginx reporté en Phase 10,** avec les configurations Compose Cloud et On-Premise. En Phase 1, les ports ne sont publiés que sur `127.0.0.1`.
+- **Nginx reporté en Phase 10,** avec les configurations Compose Cloud et On-Premise. En Phase 1, les ports ne sont publiés que sur `127.0.0.1`. Livré en Phase 10.
 
 ### Points restants
 
@@ -86,6 +86,141 @@ Comportement en panne, vérifié sur la stack réelle :
 - **Starlette** signale la dépréciation de `httpx` pour son client de test. Cela ne concerne que les tests.
 - **Licences AGPL :** résolu en Phase 6. PyMuPDF et Ghostscript ont été écartés au profit de PDFium (`pypdfium2`, BSD et Apache 2.0) et de LittleCMS (MIT).
 - **Aucun commit :** résolu, chaque phase est commitée et poussée.
+
+## Phase 10 : Rapports et déploiement commercial
+
+### Livré
+
+- **Rapports PDF, Excel et CSV** (page **Rapports**) : les neuf rapports du cahier des charges (§ 14) :
+  - production ;
+  - consommation CMJN, par machine et par client ;
+  - coûts d'impression ;
+  - rendement toner ;
+  - stocks ;
+  - maintenance ;
+  - rentabilité.
+
+  Pour chaque rapport, on choisit une période et un site. Un même modèle de document donne trois rendus :
+  - **PDF** paginé, avec indicateurs ;
+  - **Excel** : formats numériques réels, filtres, feuille « Méthode » ;
+  - **CSV** pour un tableur français : point-virgule, BOM, protection contre l'injection de formules.
+
+  Chaque rapport exige ses propres droits, et chaque export est inscrit au journal d'audit.
+
+- **Statistiques avancées :** tendances sur 3, 6 ou 12 mois (pages noir et couleur, coût de revient, chiffre d'affaires), machines les plus actives et rentabilité par client, chaque contrat face au coût de ses propres machines.
+- **Sécurité et audit :**
+  - **Journal d'audit :** export CSV sur une période, pour une entreprise ou toute la plateforme.
+  - **Conservation des données :** purge quotidienne, réglable, sous verrou Redis, du journal d'audit, des événements et synchronisations des agents, de l'historique des niveaux et des alertes clôturées. Les données de gestion ne sont jamais purgées.
+  - **Garde-fou en base :** une entrée de moins d'un an ne peut pas être supprimée, même en contournant l'application ; seul le rôle système peut appeler la purge.
+  - **En-têtes HTTP :** CSP et en-têtes de sécurité sur le frontend.
+  - **Adresse réelle des clients :** fiabilisée derrière le proxy (voir les corrections).
+- **Administration système** (page réservée au Super Administrateur) :
+  - version, mode de déploiement et état de la plateforme ;
+  - politique de conservation, dernière purge et purge à la demande ;
+  - archivage du journal.
+- **Déploiement Cloud et On-Premise :**
+  - **Pile de production** (`compose.prod.yaml`, avec `compose.cloud.yaml` ou `compose.onprem.yaml`) : seul Nginx est exposé.
+  - **Nginx :** TLS 1.2 et 1.3, redirection HTTPS, HSTS, `X-Forwarded-For` remplacé, 60 Mo, délais de 130 s.
+  - **Certificats :** Let's Encrypt renouvelé automatiquement (Cloud) ou autorité locale ARKSEN créée au premier démarrage (On-Premise).
+  - **Sauvegardes :** quotidiennes avec empreinte et rotation, restauration vérifiée.
+  - **Modèle de configuration :** `.env.production.example`.
+- **Agent Windows :**
+  - `SHA256SUMS.txt` à chaque construction ;
+  - signature Authenticode facultative (`.pfx` ou certificat du magasin) ;
+  - option `-CaFile` / `--ca-file` pour un serveur On-Premise ;
+  - scripts PowerShell en UTF-8 avec BOM, pour des accents corrects sous Windows PowerShell 5.1.
+- **Documentation :** `docs/deployment.md` (installation, mise à jour, sauvegarde et restauration, exploitation), `docs/security.md`, mises à jour de `configuration.md`, `architecture.md`, `collector.md` et du README.
+
+### Critères d'acceptation
+
+| Critère                        | Résultat                                                                                     |
+| ------------------------------ | -------------------------------------------------------------------------------------------- |
+| Rapports PDF et Excel (et CSV) | Validé : 9 rapports × 3 formats, droits vérifiés, exports audités                            |
+| Statistiques avancées          | Validé : tendances mensuelles, machines les plus actives, rentabilité par client             |
+| Sécurité et audit              | Validé : export du journal, conservation, garde-fous en base, en-têtes HTTP, IP réelle       |
+| Déploiement On-Premise         | Validé sur une vraie pile : HTTPS par autorité locale, agent enregistré en HTTPS             |
+| Déploiement Cloud              | Configuration validée (`docker compose config`) ; Let's Encrypt non testable sans DNS public |
+| Packaging de l'agent Windows   | Validé : paquet construit avec empreintes ; signature prête, non testée faute de certificat  |
+| Tests finaux                   | Validé : 30 tâches sur 30 sans cache, 128 tests de bout en bout, contrôle de la pile 11/11   |
+
+Détail des tests :
+
+| Paquet                 | Tests | Dont nouveaux en Phase 10 |
+| ---------------------- | ----- | ------------------------- |
+| `@arksen/api`          | 91    | 8                         |
+| `@arksen/validation`   | 79    | 7                         |
+| `@arksen/analytics`    | 68    |                           |
+| `@arksen/collector`    | 45    | 2                         |
+| `@arksen/web`          | 36    | 2                         |
+| `@arksen/shared-types` | 12    |                           |
+| `@arksen/database`     | 2     |                           |
+| `@arksen/workers`      | 2     |                           |
+
+Soit 335 tests unitaires et d'intégration, et **128 tests de bout en bout** sur la stack Docker réelle (13 nouveaux, dans `apps/api/test/e2e/reports.e2e.test.ts`) :
+
+- **Exports :** chaque rapport dans chaque format, avec ses signatures (`%PDF-`, `PK`, BOM UTF-8). Le CSV de production contient les 12 000 pages relevées.
+- **Droits :**
+  - un utilisateur obtient la production, mais 403 sur les coûts, les stocks, la rentabilité et la consommation ;
+  - une autre entreprise obtient 404 ;
+  - période inversée, future ou format inconnu : 400.
+- **Statistiques :** 6 mois par défaut, 3 sur demande, 24 refusés ; réservées aux rôles qui voient les coûts.
+- **Journal d'audit :**
+  - l'export par entreprise ne contient pas les autres entreprises ;
+  - l'export de la plateforme est réservé au Super Administrateur ;
+  - en base, modification et suppression sont refusées, même drapeau de purge levé ;
+  - la purge à moins d'un an est refusée, et le rôle applicatif ne peut pas l'appeler.
+- **Conservation :** la politique est visible du seul Super Administrateur, et la purge à la demande ne touche aucune donnée récente. Elle est journalisée.
+
+Deux premiers échecs, dus aux tests : un administrateur d'une autre entreprise reçoit 404 (convention existante : l'existence de l'entreprise n'est pas révélée), et non 403.
+
+**Pile de production On-Premise**, construite et démarrée (ports 8080 et 8443) :
+
+- **Services :** les neuf sont sains, et seul Nginx publie des ports.
+- **HTTPS :**
+  - certificat signé par l'autorité locale, accepté avec `ca.pem` et refusé sans ;
+  - TLS 1.1 refusé ;
+  - HTTP redirigé vers `PUBLIC_WEB_URL` ;
+  - HSTS, CSP, `X-Frame-Options`, `nosniff`, `Referrer-Policy` et `Permissions-Policy` présents.
+- **Adresse IP :** une adresse usurpée dans `X-Forwarded-For` est ignorée, et l'adresse réelle est journalisée.
+- **Agent :** enregistré puis synchronisé en HTTPS à travers Nginx avec `--ca-file`. Sans l'autorité, il refuse la connexion.
+- **Sauvegarde et restauration :**
+  - la sauvegarde est automatique au démarrage, avec empreinte ;
+  - une restauration sur une base modifiée revient exactement à l'état sauvegardé ;
+  - après restauration, la connexion, le RLS, le journal en ajout seul et les droits de purge sont intacts.
+
+Corrections apportées pendant la vérification :
+
+- **Adresse IP des clients derrière le proxy (défaut de production) :** Better Auth ne voit pas le pair TCP. Avec sa liste de proxys privés de confiance, il rejetait toute adresse privée. Derrière Nginx, un poste du réseau local (On-Premise) avait donc une adresse vide dans le journal, et tous les postes partageaient un seul compteur de tentatives de connexion. L'adresse est désormais résolue par Express puis transmise à Better Auth dans un en-tête interne toujours écrasé (3 tests).
+- **Marge des statistiques :** elle comparait le chiffre d'affaires des contrats au coût de tout le parc, d'où −417 %. Elle compare maintenant chaque contrat au coût de ses machines : +22 % sur les données de démonstration.
+- **Accents des scripts de l'agent :** Windows PowerShell 5.1 lisait les scripts UTF-8 sans BOM en ANSI.
+- **Tableau des clients sur mobile :** le chiffre d'affaires passe sous le nom du client.
+
+Vérification visuelle (compte `demo-interface`, données notées « démo ») :
+
+- page Rapports en clair sur ordinateur, en sombre sur mobile, sans défilement horizontal ;
+- vrais téléchargements Excel et CSV depuis l'interface (HTTP 200) ;
+- console sans erreur ni violation de la CSP.
+
+La page Administration système n'a été vue que sous l'angle du refus d'accès (compte administrateur client). Son contenu est couvert par les tests de bout en bout. Le panneau du navigateur était masqué : une partie des captures a échoué, et le contenu a été vérifié par le texte de la page.
+
+### Écarts par rapport au plan
+
+- **Certificat Cloud :** obtenu par certbot en validation HTTP. Il n'a pas pu être testé ici, faute de nom DNS public. Un certificat provisoire sert en attendant, puis Nginx reprend le certificat Let's Encrypt dans l'heure.
+- **Signature de l'agent :** le mécanisme est prêt, mais aucun certificat de signature de code n'est disponible. Le paquet de test est construit non signé, avec un avertissement.
+- **Dernière purge :** mémorisée dans Redis, avec chaque exécution dans le journal d'audit. Elle est perdue si Redis est vidé, ce qui ne change pas la politique appliquée.
+- **CSP :** `'unsafe-inline'` pour les scripts, car Next.js injecte des scripts en ligne. Une CSP à nonce demanderait un rendu dynamique de toutes les pages.
+
+### Points restants
+
+- **Certificat de signature de code** à acquérir avant de diffuser l'agent.
+- **Test Cloud réel :** sur un serveur public, obtention et renouvellement Let's Encrypt.
+- **Sauvegardes hors site :** le dossier `BACKUP_DIR` est à recopier hors du serveur ; la pile ne le fait pas.
+- **Points des phases précédentes toujours ouverts :**
+  - facture légale et export comptable ;
+  - stock de pièces détachées ;
+  - requêtes concurrentes dans une transaction (Phase 5) ;
+  - ESLint 10.
+- **Données de test :** entreprises `e2e-rapports-…` laissées par les tests.
 
 ## Phase 9 : Coûts, maintenance et contrats
 
@@ -170,7 +305,7 @@ Corrections apportées :
 
 ### Points restants
 
-- **Rentabilité par client et rapports :** les relevés donnent la marge par contrat ; les rapports PDF, Excel et CSV et la rentabilité consolidée relèvent de la Phase 10.
+- **Rentabilité par client et rapports :** résolu en Phase 10 (rapports PDF, Excel et CSV, statistiques).
 - **Facture légale et export comptable :** à cadrer avec un client (voir les écarts).
 - **Pièces détachées :** les interventions enregistrent le coût des pièces, sans stock de pièces.
 - **Requêtes concurrentes dans une transaction :** toujours ouvert (voir Phase 5).
@@ -259,7 +394,7 @@ Corrections apportées :
 
 - **Commandes fournisseurs :** la quantité conseillée est calculée, mais il n'existe pas encore de bon de commande.
 - **Consommation réelle :** un remplacement n'alimente pas encore la calibration de la Phase 5 comme une cartouche vidée ; à relier avec les coûts de la Phase 9.
-- **Rétention :** pas encore de purge de l'historique des niveaux SNMP ni des alertes résolues ; à fixer avec la conservation des données (Phase 10).
+- **Rétention :** résolu en Phase 10 (historique des niveaux et alertes clôturées purgés selon la politique de conservation).
 - **Notifications :** les alertes s'affichent dans l'application ; leur envoi par e-mail reste à faire.
 - **Requêtes concurrentes dans une transaction :** toujours ouvert (voir Phase 5).
 - **Données de test :** entreprises `e2e-stock-…` laissées par les tests.
@@ -367,7 +502,7 @@ Vérification visuelle : page Agents de collecte et fiche machine (panneau État
 - **Signature de code :** le paquet n'est pas signé. Une signature Authenticode sera nécessaire avant la commercialisation, pour éviter les alertes SmartScreen.
 - **Installateur MSI :** le paquet est un ZIP accompagné de scripts PowerShell ; un installateur MSI pourra le remplacer.
 - **Historique des niveaux :** seul le dernier état SNMP est conservé côté serveur. Les alertes et les prévisions de la Phase 8 en garderont l'historique.
-- **Événements serveur :** le journal `agent_events` n'a pas encore de purge. Une rétention sera fixée avec les rapports de la Phase 10.
+- **Événements serveur :** résolu en Phase 10 (`agent_events` et `agent_sync_logs` purgés selon la politique de conservation).
 - **Requêtes concurrentes dans une transaction :** toujours ouvert (voir Phase 5).
 - **Données de test :** entreprises `e2e-agent-…` laissées par les tests.
 
@@ -500,7 +635,7 @@ Vérification visuelle : page Consommation toner, simulateur Aplat CMJN, fiche m
 - **Facteurs de support :** aucune valeur par type de papier n'est inventée ; le facteur se règle par machine. Des valeurs mesurées pourront alimenter un référentiel.
 - **Catalogue Arksen :** toujours vide. Ses toners se renseignent depuis les fiches du catalogue.
 - **Requêtes concurrentes dans une transaction :** le pilote PostgreSQL signale (avertissement de dépréciation) des `Promise.all` dans les transactions de 11 services, écrits depuis la Phase 2. Sans effet aujourd'hui, ils devront devenir séquentiels avant le passage à `pg` 9.
-- **Moteur sans authentification :** il n'est joignable que par l'API sur le réseau interne. Son port publié en développement sera retiré en Phase 10.
+- **Moteur sans authentification :** il n'est joignable que par l'API sur le réseau interne. Résolu en Phase 10 : la pile de production ne publie pas son port.
 - **Données de test :** données de démonstration dans `demo-interface`, entreprises `e2e-…` laissées par les tests.
 - **Points des phases précédentes toujours ouverts :** voir les sections précédentes.
 
@@ -706,16 +841,41 @@ Vérification dans le navigateur : redirection vers `/login` avec retour à la p
 
 ### Points restants
 
-- **Proxy frontal :** la limitation des connexions lit l'adresse IP dans `X-Forwarded-For`. Sans proxy frontal, un poste du réseau local peut la falsifier. Nginx, en Phase 10, devra écraser cet en-tête.
+- **Proxy frontal :** résolu en Phase 10. Nginx remplace `X-Forwarded-For`, et l'adresse est résolue par Express pour Better Auth.
 - **Limitation en mémoire :** les compteurs de tentatives sont propres à chaque instance de l'API. Avec plusieurs instances, il faudra les stocker dans Redis.
 - **Mot de passe temporaire :** son changement n'est pas encore imposé à la première connexion.
 - **Mot de passe oublié :** pas de réinitialisation par e-mail, faute de service d'envoi. Un administrateur réinitialise le mot de passe.
 - **Double authentification :** non prévue par le plan, à envisager pour les Super Administrateurs.
-- **Conservation du journal d'audit :** politique de purge à définir en Phase 10.
+- **Conservation du journal d'audit :** résolu en Phase 10 (trois ans par défaut, un an au moins, garde-fou en base).
 - **Données de test :** les tests de bout en bout laissent dans la base de développement des entreprises dont l'identifiant commence par `e2e-`.
 - **Points de la Phase 1 toujours ouverts :** ESLint 10, licences AGPL de la Phase 6, aucun commit.
 
 ## Journal des modifications
+
+### 5 novembre 2026 : Phase 10
+
+- **Base de données :** migration `20261109000000_retention` : purge du journal d'audit limitée aux entrées de plus d'un an, fonction `purge_audit_logs` réservée à `arksen_system`.
+- **API :**
+  - module `reports` : modèle de document et rendus CSV, Excel (exceljs) et PDF (pdfkit), neuf rapports, statistiques ;
+  - export CSV du journal d'audit ;
+  - `RetentionService` et purge quotidienne ;
+  - routes `system/retention` ;
+  - adresse du client résolue par Express pour Better Auth.
+- **Contrats :** `packages/shared-types/src/reports.ts`, types de conservation, `packages/validation/src/reports.ts`, variables `RETENTION_*`, permission `platform:system:manage`.
+- **Web :**
+  - pages Rapports et Administration système ;
+  - export du journal d'audit ;
+  - panneau Rapports du tableau de bord ;
+  - en-têtes de sécurité ;
+  - navigation : plus aucun module annoncé pour une phase à venir.
+- **Infrastructure :**
+  - `compose.prod.yaml`, `compose.cloud.yaml` et `compose.onprem.yaml` ;
+  - image Nginx (modèle, TLS, autorité locale) ;
+  - image de sauvegarde (`backup.sh`, `restore.sh`) ;
+  - `.env.production.example`.
+- **Agent :** `--ca-file`, `-CaFile`, empreintes SHA-256, signature Authenticode facultative, scripts en UTF-8 avec BOM.
+- **Tests :** `reports.e2e.test.ts`, rendus, adresse du client, schémas, conservation, navigation, agent.
+- **Documentation :** `docs/deployment.md`, `docs/security.md`, `configuration.md`, `architecture.md`, `collector.md`, README.
 
 ### 8 novembre 2026 : Phase 9
 

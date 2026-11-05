@@ -9,6 +9,12 @@ const redisUrl = z.url({ protocol: /^rediss?$/ });
 const optional = <T extends z.ZodType>(schema: T) =>
   z.preprocess((value) => (value === '' ? undefined : value), schema.optional());
 
+/** Durée de conservation en jours, bornée par un minimum. */
+const retention = (min: number, fallback: number) =>
+  optional(z.coerce.number().int().min(min, `${min} jours au moins`).max(36500)).transform(
+    (value) => value ?? fallback,
+  );
+
 /** Variables d'environnement de l'API NestJS. */
 export const apiEnvSchema = z
   .object({
@@ -34,6 +40,15 @@ export const apiEnvSchema = z
     SUPER_ADMIN_NAME: optional(z.string().min(2)).transform(
       (value) => value ?? 'Administrateur Arksen',
     ),
+    /**
+     * Conservation des données, en jours. Le journal d'audit est gardé un an au moins (plancher
+     * imposé aussi par la base) ; les registres de stock et les relevés émis ne sont jamais purgés.
+     */
+    RETENTION_AUDIT_DAYS: retention(365, 1095),
+    RETENTION_AGENT_EVENTS_DAYS: retention(30, 180),
+    RETENTION_SUPPLY_LEVELS_DAYS: retention(90, 730),
+    RETENTION_ALERTS_DAYS: retention(30, 365),
+    RETENTION_SYNC_LOGS_DAYS: retention(30, 180),
   })
   .refine((env) => Boolean(env.SUPER_ADMIN_EMAIL) === Boolean(env.SUPER_ADMIN_PASSWORD), {
     message: 'à définir avec SUPER_ADMIN_EMAIL, ou pas du tout',

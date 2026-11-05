@@ -1,0 +1,41 @@
+# Installation Cloud : serveur public, certificat Let's Encrypt obtenu et renouvelé par certbot.
+# Le nom SERVER_NAME doit pointer vers ce serveur, et le port 80 être joignable depuis Internet.
+services:
+  api:
+    environment:
+      DEPLOYMENT_MODE: cloud
+
+  nginx:
+    volumes:
+      - letsencrypt:/etc/letsencrypt:ro
+
+  # Obtient le certificat (validation HTTP par nginx), puis le renouvelle deux fois par jour.
+  # nginx recopie le certificat renouvelé et se recharge de lui-même.
+  certbot:
+    image: certbot/certbot:v5.1.0
+    restart: unless-stopped
+    environment:
+      SERVER_NAME: ${SERVER_NAME}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL manquant (contact Let's Encrypt)}
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - acme-webroot:/var/www/acme
+    entrypoint:
+      - sh
+      - -c
+      - |
+        trap exit TERM
+        until [ -s "/etc/letsencrypt/live/$$SERVER_NAME/fullchain.pem" ]; do
+          certbot certonly --webroot -w /var/www/acme -d "$$SERVER_NAME" \
+            --email "$$ACME_EMAIL" --agree-tos --non-interactive --keep-until-expiring \
+            || sleep 300
+        done
+        while :; do
+          sleep 12h & wait $$!
+          certbot renew --webroot -w /var/www/acme --quiet
+        done
+    depends_on:
+      - nginx
+
+volumes:
+  letsencrypt:

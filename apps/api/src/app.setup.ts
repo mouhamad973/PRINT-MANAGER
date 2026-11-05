@@ -1,9 +1,19 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { toNodeHandler } from 'better-auth/node';
+import type { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
-import { AUTH, type Auth } from './auth/auth.js';
+import { AUTH, CLIENT_IP_HEADER, type Auth } from './auth/auth.js';
 import { API_VERSION } from './version.js';
+
+/**
+ * Seule source de l'adresse du client pour Better Auth : la valeur éventuellement envoyée par le
+ * client est toujours remplacée par celle qu'Express a résolue (pair TCP et proxys de confiance).
+ */
+export function resolveClientIp(request: Request, _response: Response, next: NextFunction): void {
+  request.headers[CLIENT_IP_HEADER] = request.ip ?? '';
+  next();
+}
 
 /**
  * Configuration commune à l'application réelle et aux tests.
@@ -16,6 +26,8 @@ export function configureApp(app: NestExpressApplication): void {
   app.disable('x-powered-by');
   // L'API ne sert que du JSON, hors /docs dont l'interface a besoin de scripts en ligne.
   app.use(helmet({ contentSecurityPolicy: false }));
+
+  app.use(resolveClientIp);
 
   const auth = app.get<Auth>(AUTH);
   app.getHttpAdapter().getInstance().all('/api/auth/{*path}', toNodeHandler(auth));

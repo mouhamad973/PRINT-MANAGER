@@ -10,5 +10,6 @@ import { ContractsService } from './contracts.service.js';
   imports: [AuditModule, ConsumptionModule, CostsModule],
   controllers: [ContractsController],
   providers: [ContractsService],
+  exports: [ContractsService],
 })
 export class ContractsModule {}

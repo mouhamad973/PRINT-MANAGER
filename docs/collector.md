@@ -20,6 +20,10 @@ Code : `services/collector` (Python 3.12, PySNMP, httpx, SQLite, pywin32). Paque
 
 Sans `-Server` ni `-Code`, l'agent s'enregistre depuis l'interface locale.
 
+Serveur On-Premise à certificat interne : ajouter `-CaFile arksen-ca.pem`, le certificat de l'autorité locale du serveur ([deployment.md](deployment.md)). Il est copié dans le dossier protégé de l'agent, qui lui fait confiance en plus des autorités de Windows. En ligne de commande : `arksen-collector enroll --server ... --code ... --ca-file C:\Arksen\arksen-ca.pem`.
+
+Avant l'installation, vérifier l'archive : son empreinte SHA-256 (`Get-FileHash arksen-collector-<version>.zip`) doit correspondre à `SHA256SUMS.txt`. `install.ps1` affiche le signataire de l'exécutable, ou avertit s'il n'est pas signé.
+
 Désinstallation : `uninstall.ps1`. Les données (`C:\ProgramData\Arksen\Collector`) sont conservées, car elles peuvent contenir des relevés pas encore synchronisés.
 
 ### Configuration des machines
@@ -178,7 +182,16 @@ powershell -ExecutionPolicy Bypass -File packaging\build.ps1
 Le script produit :
 
 - `dist\arksen-collector\`, l'exécutable autonome et ses bibliothèques, sans Python à installer ;
-- `dist\arksen-collector-<version>.zip`, avec `install.ps1` et `uninstall.ps1`.
+- `dist\arksen-collector-<version>.zip`, avec `install.ps1` et `uninstall.ps1` ;
+- `dist\SHA256SUMS.txt`, l'empreinte SHA-256 de l'exécutable et de l'archive, à publier avec elle.
+
+**Signature Authenticode.** Avec un certificat de signature de code, l'exécutable est signé et horodaté avant d'être archivé (`signtool`, SDK Windows) :
+
+- `ARKSEN_SIGN_PFX` et `ARKSEN_SIGN_PASSWORD` : certificat en fichier `.pfx` ;
+- ou `ARKSEN_SIGN_THUMBPRINT` : empreinte d'un certificat du magasin de l'utilisateur (jeton matériel, par exemple) ;
+- `ARKSEN_SIGN_TIMESTAMP` : serveur d'horodatage, DigiCert par défaut.
+
+Sans ces variables, le paquet est construit non signé, avec un avertissement. Un exécutable non signé déclenche SmartScreen ; à réserver aux essais.
 
 L'exécutable sert à la fois de ligne de commande et de service : lancé sans argument par le gestionnaire de services Windows, il démarre le service.
 

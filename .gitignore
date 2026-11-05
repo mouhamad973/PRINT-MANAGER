@@ -30,6 +30,13 @@ build/
 .env
 .env.*
 !.env.example
+!.env.production.example
+
+# Sauvegardes PostgreSQL et certificats d'un déploiement local
+backups/
+*.dump
+*.pem
+*.key
 
 # Agent Windows : données locales
 *.sqlite

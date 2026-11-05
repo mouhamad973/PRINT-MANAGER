@@ -87,3 +87,28 @@ export async function apiUpload<T>(path: string, form: FormData): Promise<T> {
   }
   return (await response.json()) as T;
 }
+
+/**
+ * Télécharge un fichier produit par l'API (rapport, export). L'appel passe par `fetch` pour
+ * afficher un message clair en cas de refus, plutôt qu'une page d'erreur brute.
+ */
+export async function apiDownload(path: string, fallbackName: string): Promise<string> {
+  const response = await fetch(`/backend/api/v1${path}`, {
+    credentials: 'same-origin',
+    cache: 'no-store',
+  });
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+  const disposition = response.headers.get('Content-Disposition') ?? '';
+  const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? fallbackName;
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return filename;
+}

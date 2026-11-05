@@ -10,5 +10,6 @@ import { PaperService } from './paper.service.js';
   imports: [AuditModule, AlertsModule, ConsumptionModule],
   controllers: [PaperController],
   providers: [PaperService],
+  exports: [PaperService],
 })
 export class PaperModule {}

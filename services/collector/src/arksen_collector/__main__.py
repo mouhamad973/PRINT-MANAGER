@@ -25,7 +25,12 @@ def _agent(args: argparse.Namespace) -> Agent:
 
 def _cmd_enroll(args: argparse.Namespace) -> int:
     agent = _agent(args)
-    agent.enroll(args.server, args.code, allow_insecure_http=args.allow_insecure_http)
+    agent.enroll(
+        args.server,
+        args.code,
+        allow_insecure_http=args.allow_insecure_http,
+        ca_file=args.ca_file,
+    )
     agent.refresh_configuration()
     print(f"Agent enregistré : {agent.settings.agent_name} ({agent.settings.agent_id}).")
     print(f"Machines à interroger : {len(agent.targets())}.")
@@ -142,6 +147,7 @@ def build_parser() -> argparse.ArgumentParser:
     enroll.add_argument(
         "--allow-insecure-http", action="store_true", help="autorise HTTP (réseau de test)"
     )
+    enroll.add_argument("--ca-file", help="certificat de l'autorité du serveur On-Premise (ca.pem)")
     enroll.set_defaults(handler=_cmd_enroll)
 
     run = commands.add_parser("run", help="collecte et synchronise en continu (premier plan)")

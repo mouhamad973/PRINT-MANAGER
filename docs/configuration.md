@@ -58,7 +58,34 @@ Les mots de passe sont insérés tels quels dans des URL de connexion. Limitez-l
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-Tous les ports sont publiés sur `127.0.0.1` uniquement. L'exposition réseau, Nginx et HTTPS sont traités en Phase 10.
+En développement, tous les ports sont publiés sur `127.0.0.1` uniquement. En production, seul Nginx publie des ports (80 et 443) : voir [deployment.md](deployment.md).
+
+### Conservation des données
+
+Durées en jours, appliquées chaque jour par l'API (voir [security.md](security.md)). Vides, elles prennent la valeur par défaut.
+
+| Variable                       | Défaut | Minimum | Donnée purgée                                          |
+| ------------------------------ | ------ | ------- | ------------------------------------------------------ |
+| `RETENTION_AUDIT_DAYS`         | `1095` | `365`   | Journal d'audit                                        |
+| `RETENTION_AGENT_EVENTS_DAYS`  | `180`  | `30`    | Événements reçus des agents de collecte                |
+| `RETENTION_SYNC_LOGS_DAYS`     | `180`  | `30`    | Journal des synchronisations des agents                |
+| `RETENTION_SUPPLY_LEVELS_DAYS` | `730`  | `90`    | Historique des niveaux de toner (le dernier est gardé) |
+| `RETENTION_ALERTS_DAYS`        | `365`  | `30`    | Alertes clôturées                                      |
+
+### Production
+
+Variables propres au fichier `.env.production` (modèle : `.env.production.example`).
+
+| Variable                | Exemple               | Rôle                                                                  |
+| ----------------------- | --------------------- | --------------------------------------------------------------------- |
+| `SERVER_NAME`           | `print.exemple.com`   | Nom DNS du serveur : certificat TLS et Nginx                          |
+| `SERVER_IP`             | `192.168.1.20`        | On-Premise : adresse IP ajoutée au certificat (facultatif)            |
+| `ACME_EMAIL`            | `it@exemple.com`      | Cloud : contact Let's Encrypt                                         |
+| `HTTP_PORT`             | `80`                  | Port HTTP publié (redirection vers HTTPS et validation Let's Encrypt) |
+| `HTTPS_PORT`            | `443`                 | Port HTTPS publié                                                     |
+| `BACKUP_DIR`            | `/srv/arksen/backups` | Dossier de l'hôte qui reçoit les sauvegardes                          |
+| `BACKUP_INTERVAL_HOURS` | `24`                  | Intervalle entre deux sauvegardes                                     |
+| `BACKUP_RETENTION_DAYS` | `14`                  | Âge au-delà duquel une sauvegarde est supprimée                       |
 
 ## Variables par service
 
@@ -76,6 +103,7 @@ Dans Docker, le fichier Compose construit ces variables. Hors Docker, elles vien
 | API       | `CREDENTIALS_ENCRYPTION_KEY` | Oui         | Chiffrement des secrets SNMP                  |
 | API       | `SUPER_ADMIN_*`              | Non         | Premier Super Administrateur                  |
 | API       | `API_PORT`                   | Non         | Port d'écoute, 4000 par défaut                |
+| API       | `RETENTION_*`                | Non         | Durées de conservation des données            |
 | Workers   | `REDIS_URL`                  | Oui         | Connexion Redis                               |
 | Analyse   | `ANALYTICS_CMYK_ICC_PROFILE` | Non         | Profil ICC de sortie pour l'analyse PDF       |
 | Web       | `API_INTERNAL_URL`           | Non         | Adresse de l'API, lue à l'exécution           |

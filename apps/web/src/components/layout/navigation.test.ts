@@ -47,8 +47,14 @@ describe('navigationFor', () => {
     expect(technician).toContain('État de la plateforme');
   });
 
-  it('garde visibles les modules à venir, marqués de leur phase', () => {
+  it('ouvre les rapports à tous les rôles, et l’administration système à la seule plateforme', () => {
     expect(labels(current('USER'))).toContain('Rapports');
+    expect(labels(current('SUPER_ADMIN', false))).toContain('Administration système');
+    expect(labels(current('CLIENT_ADMIN'))).not.toContain('Administration système');
+  });
+
+  it('livre tous les modules : plus aucun n’est annoncé pour une phase à venir', () => {
+    expect(items.filter((item) => item.phase !== undefined)).toEqual([]);
   });
 
   it('ouvre le parc à tous les rôles d’entreprise et à la plateforme', () => {
