@@ -1,21 +1,21 @@
 # État du projet ARKSEN PRINT MANAGER
 
-Dernière mise à jour : 5 novembre 2026 (Phase 10).
+Dernière mise à jour : 5 novembre 2026 (Phase 10 validée : toutes les phases sont terminées).
 
 ## Avancement
 
-| Phase | Contenu                                      | État                               |
-| ----- | -------------------------------------------- | ---------------------------------- |
-| 1     | Architecture et configuration du projet      | Terminée et validée                |
-| 2     | Authentification et gestion des utilisateurs | Terminée et validée                |
-| 3     | Dashboard et gestion du parc machines        | Terminée et validée                |
-| 4     | Compteurs et historique                      | Terminée et validée                |
-| 5     | Moteur de calcul de consommation CMJN        | Terminée et validée                |
-| 6     | Analyse PDF                                  | Terminée et validée                |
-| 7     | Collecteur SNMP et agent Windows             | Terminée et validée                |
-| 8     | Gestion des consommables et stocks           | Terminée et validée                |
-| 9     | Coûts, maintenance et contrats               | Terminée et validée                |
-| 10    | Rapports et déploiement commercial           | Terminée, en attente de validation |
+| Phase | Contenu                                      | État                |
+| ----- | -------------------------------------------- | ------------------- |
+| 1     | Architecture et configuration du projet      | Terminée et validée |
+| 2     | Authentification et gestion des utilisateurs | Terminée et validée |
+| 3     | Dashboard et gestion du parc machines        | Terminée et validée |
+| 4     | Compteurs et historique                      | Terminée et validée |
+| 5     | Moteur de calcul de consommation CMJN        | Terminée et validée |
+| 6     | Analyse PDF                                  | Terminée et validée |
+| 7     | Collecteur SNMP et agent Windows             | Terminée et validée |
+| 8     | Gestion des consommables et stocks           | Terminée et validée |
+| 9     | Coûts, maintenance et contrats               | Terminée et validée |
+| 10    | Rapports et déploiement commercial           | Terminée et validée |
 
 ## Phase 1 : Architecture et configuration
 
