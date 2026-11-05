@@ -36,6 +36,7 @@ import { numberFormat } from '@/features/meters/meters-ui';
 import { useSession } from '@/features/session/session-provider';
 import { errorMessage } from '@/lib/api';
 import { formatDateTime } from '@/lib/format';
+import { RecordPrinted } from '@/features/operations/impressions-page';
 import { CoverageBars, formatCoverage } from './coverage-bars';
 import { formatSize } from './print-jobs-page';
 
@@ -238,6 +239,16 @@ function Estimate({
               ))}
             </TableBody>
           </Table>
+          {can('print-jobs:manage') && (
+            <div className="pt-5">
+              <RecordPrinted
+                tenantId={tenantId}
+                jobId={job.id}
+                printerId={printerId}
+                copies={data.copies}
+              />
+            </div>
+          )}
         </>
       )}
     </Panel>

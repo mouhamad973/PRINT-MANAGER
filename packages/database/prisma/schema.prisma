@@ -67,6 +67,16 @@ model Tenant {
   tonerReplacements  TonerReplacement[]
   supplyLevels       SupplyLevelReading[]
   alerts             Alert[]
+  paperTypes         PaperType[]
+  paperStocks        PaperStock[]
+  paperMovements     PaperMovement[]
+  costSettings       PrinterCostSettings[]
+  contracts          Contract[]
+  contractPrinters   ContractPrinter[]
+  invoices           Invoice[]
+  sequences          TenantSequence[]
+  interventions      Intervention[]
+  maintenancePlans   MaintenancePlan[]
 
   @@map("tenants")
 }
@@ -203,6 +213,7 @@ model Site {
   printers Printer[]
   agents   CollectorAgent[]
   stocks   TonerStock[]
+  paper    PaperStock[]
   alerts   Alert[]
 
   @@unique([tenantId, name])
@@ -307,6 +318,10 @@ model Printer {
   replacements  TonerReplacement[]
   supplyLevels  SupplyLevelReading[]
   alerts        Alert[]
+  costSettings  PrinterCostSettings?
+  contract      ContractPrinter?
+  interventions Intervention[]
+  plans         MaintenancePlan[]
 
   @@unique([tenantId, serialNumber])
   @@unique([id, tenantId])
@@ -524,28 +539,34 @@ model ConsumptionMeasurement {
 /// Travail d'impression analysé avant production : un fichier PDF, sa machine prévue et ses exemplaires.
 /// Le fichier n'est pas conservé : seules ses mesures le sont.
 model PrintJob {
-  id             String   @id @default(uuid(7)) @db.Uuid
-  tenantId       String   @map("tenant_id") @db.Uuid
+  id             String    @id @default(uuid(7)) @db.Uuid
+  tenantId       String    @map("tenant_id") @db.Uuid
   name           String
-  fileSize       Int      @map("file_size")
+  fileSize       Int       @map("file_size")
   /// Empreinte SHA-256 du fichier, pour reconnaître un fichier déjà analysé.
-  fileSha256     String   @map("file_sha256")
-  pageCount      Int      @map("page_count")
-  colorPages     Int      @map("color_pages")
+  fileSha256     String    @map("file_sha256")
+  pageCount      Int       @map("page_count")
+  colorPages     Int       @map("color_pages")
   /// Méthode de rendu et de séparation CMJN qui a produit les mesures.
   method         String
   dpi            Int
-  averageCyan    Decimal  @map("average_cyan") @db.Decimal(6, 3)
-  averageMagenta Decimal  @map("average_magenta") @db.Decimal(6, 3)
-  averageYellow  Decimal  @map("average_yellow") @db.Decimal(6, 3)
-  averageBlack   Decimal  @map("average_black") @db.Decimal(6, 3)
+  averageCyan    Decimal   @map("average_cyan") @db.Decimal(6, 3)
+  averageMagenta Decimal   @map("average_magenta") @db.Decimal(6, 3)
+  averageYellow  Decimal   @map("average_yellow") @db.Decimal(6, 3)
+  averageBlack   Decimal   @map("average_black") @db.Decimal(6, 3)
   /// Machine prévue, facultative ; elle doit appartenir à la même entreprise (déclencheur).
-  printerId      String?  @map("printer_id") @db.Uuid
-  copies         Int      @default(1)
-  createdById    String?  @map("created_by_id")
-  createdByEmail String?  @map("created_by_email")
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  printerId      String?   @map("printer_id") @db.Uuid
+  copies         Int       @default(1)
+  /// Phase 9 : travail réellement imprimé, son coût de revient et son prix de vente.
+  printedAt      DateTime? @map("printed_at") @db.Timestamptz(3)
+  printedByEmail String?   @map("printed_by_email")
+  tonerCost      Decimal?  @map("toner_cost") @db.Decimal(14, 4)
+  paperCost      Decimal?  @map("paper_cost") @db.Decimal(14, 4)
+  salePrice      Decimal?  @map("sale_price") @db.Decimal(14, 2)
+  createdById    String?   @map("created_by_id")
+  createdByEmail String?   @map("created_by_email")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   tenant  Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   printer Printer?       @relation(fields: [printerId], references: [id], onDelete: SetNull)
@@ -878,6 +899,9 @@ model Alert {
   stockId             String?       @map("stock_id") @db.Uuid
   siteId              String?       @map("site_id") @db.Uuid
   channel             TonerChannel?
+  /// Stock de papier ou plan de maintenance concerné (Phase 9).
+  paperStockId        String?       @map("paper_stock_id") @db.Uuid
+  planId              String?       @map("plan_id") @db.Uuid
   openedAt            DateTime      @default(now()) @map("opened_at") @db.Timestamptz(3)
   lastSeenAt          DateTime      @default(now()) @map("last_seen_at") @db.Timestamptz(3)
   acknowledgedAt      DateTime?     @map("acknowledged_at") @db.Timestamptz(3)
@@ -894,4 +918,292 @@ model Alert {
   @@index([tenantId, status, openedAt(sort: Desc)])
   @@index([tenantId, dedupeKey])
   @@map("alerts")
+}
+
+// =====================================================================
+// Phase 9 : papier, coûts, contrats, interventions et maintenance
+// =====================================================================
+
+/// Papier acheté par l'entreprise : format, grammage, conditionnement et prix de la rame.
+model PaperType {
+  id            String      @id @default(uuid(7)) @db.Uuid
+  tenantId      String      @map("tenant_id") @db.Uuid
+  name          String
+  format        PaperFormat
+  grammage      Int?
+  sheetsPerReam Int         @default(500) @map("sheets_per_ream")
+  reamPrice     Decimal?    @map("ream_price") @db.Decimal(14, 2)
+  notes         String?
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant   Tenant                @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  stocks   PaperStock[]
+  printers PrinterCostSettings[]
+
+  @@unique([tenantId, name])
+  @@unique([id, tenantId])
+  @@map("paper_types")
+}
+
+/// Stock d'un papier sur un site, en rames, tenu par son registre (comme les toners).
+model PaperStock {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  siteId       String   @map("site_id") @db.Uuid
+  paperTypeId  String   @map("paper_type_id") @db.Uuid
+  quantity     Int      @default(0)
+  minQuantity  Int      @default(0) @map("min_quantity")
+  leadTimeDays Int      @default(7) @map("lead_time_days")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant    Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  site      Site            @relation(fields: [siteId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  paperType PaperType       @relation(fields: [paperTypeId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  movements PaperMovement[]
+
+  @@unique([siteId, paperTypeId])
+  @@unique([id, tenantId])
+  @@map("paper_stocks")
+}
+
+/// Registre des mouvements de papier : immuable, signé, avec le solde après chaque mouvement.
+model PaperMovement {
+  id             String            @id @default(uuid(7)) @db.Uuid
+  tenantId       String            @map("tenant_id") @db.Uuid
+  stockId        String            @map("stock_id") @db.Uuid
+  type           StockMovementType
+  quantity       Int
+  balanceAfter   Int               @default(0) @map("balance_after")
+  unitCost       Decimal?          @map("unit_cost") @db.Decimal(14, 2)
+  reference      String?
+  notes          String?
+  transferId     String?           @map("transfer_id") @db.Uuid
+  occurredAt     DateTime          @default(now()) @map("occurred_at") @db.Timestamptz(3)
+  createdById    String?           @map("created_by_id")
+  createdByEmail String?           @map("created_by_email")
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tenant Tenant     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  stock  PaperStock @relation(fields: [stockId, tenantId], references: [id, tenantId], onDelete: Restrict)
+
+  @@index([stockId, occurredAt(sort: Desc)])
+  @@map("paper_movements")
+}
+
+/// Réglages de coût d'une machine : papier, part de recto verso, coûts fixes mensuels.
+model PrinterCostSettings {
+  printerId        String   @id @map("printer_id") @db.Uuid
+  tenantId         String   @map("tenant_id") @db.Uuid
+  paperTypeId      String?  @map("paper_type_id") @db.Uuid
+  duplexPercent    Decimal  @default(0) @map("duplex_percent") @db.Decimal(5, 2)
+  monthlyFixedCost Decimal? @map("monthly_fixed_cost") @db.Decimal(14, 2)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  printer   Printer    @relation(fields: [printerId, tenantId], references: [id, tenantId], onDelete: Cascade)
+  paperType PaperType? @relation(fields: [paperTypeId, tenantId], references: [id, tenantId], onDelete: Restrict)
+
+  @@unique([printerId, tenantId])
+  @@map("printer_cost_settings")
+}
+
+enum ContractStatus {
+  ACTIVE
+  SUSPENDED
+  TERMINATED
+}
+
+enum BillingPeriod {
+  MONTHLY
+  QUARTERLY
+}
+
+/// Contrat client au coût copie : forfait, pages incluses et prix des pages supplémentaires.
+model Contract {
+  id                 String         @id @default(uuid(7)) @db.Uuid
+  tenantId           String         @map("tenant_id") @db.Uuid
+  reference          String
+  customerName       String         @map("customer_name")
+  customerContact    String?        @map("customer_contact")
+  status             ContractStatus @default(ACTIVE)
+  startDate          DateTime       @map("start_date") @db.Date
+  endDate            DateTime?      @map("end_date") @db.Date
+  billingPeriod      BillingPeriod  @default(MONTHLY) @map("billing_period")
+  fixedFee           Decimal        @default(0) @map("fixed_fee") @db.Decimal(14, 2)
+  includedBlackPages Int            @default(0) @map("included_black_pages")
+  includedColorPages Int            @default(0) @map("included_color_pages")
+  blackPagePrice     Decimal        @map("black_page_price") @db.Decimal(14, 4)
+  colorPagePrice     Decimal        @map("color_page_price") @db.Decimal(14, 4)
+  notes              String?
+  createdById        String?        @map("created_by_id")
+  createdByEmail     String?        @map("created_by_email")
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  printers ContractPrinter[]
+  invoices Invoice[]
+
+  @@unique([tenantId, reference])
+  @@unique([id, tenantId])
+  @@map("contracts")
+}
+
+/// Machine couverte par un contrat ; une machine n'appartient qu'à un contrat à la fois.
+model ContractPrinter {
+  contractId String   @map("contract_id") @db.Uuid
+  printerId  String   @unique @map("printer_id") @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  addedAt    DateTime @default(now()) @map("added_at") @db.Timestamptz(3)
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  contract Contract @relation(fields: [contractId, tenantId], references: [id, tenantId], onDelete: Cascade)
+  printer  Printer  @relation(fields: [printerId, tenantId], references: [id, tenantId], onDelete: Restrict)
+
+  @@id([contractId, printerId])
+  @@unique([printerId, tenantId])
+  @@map("contract_printers")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  CANCELLED
+}
+
+/// Relevé de facturation d'un contrat. Émis, il ne se modifie plus (déclencheur) : il s'annule.
+model Invoice {
+  id                 String        @id @default(uuid(7)) @db.Uuid
+  tenantId           String        @map("tenant_id") @db.Uuid
+  contractId         String        @map("contract_id") @db.Uuid
+  number             String?
+  status             InvoiceStatus @default(DRAFT)
+  periodStart        DateTime      @map("period_start") @db.Date
+  periodEnd          DateTime      @map("period_end") @db.Date
+  blackPages         Int           @map("black_pages")
+  colorPages         Int           @map("color_pages")
+  includedBlackPages Int           @map("included_black_pages")
+  includedColorPages Int           @map("included_color_pages")
+  extraBlackPages    Int           @map("extra_black_pages")
+  extraColorPages    Int           @map("extra_color_pages")
+  fixedFee           Decimal       @map("fixed_fee") @db.Decimal(14, 2)
+  blackPagePrice     Decimal       @map("black_page_price") @db.Decimal(14, 4)
+  colorPagePrice     Decimal       @map("color_page_price") @db.Decimal(14, 4)
+  extraBlackAmount   Decimal       @map("extra_black_amount") @db.Decimal(14, 2)
+  extraColorAmount   Decimal       @map("extra_color_amount") @db.Decimal(14, 2)
+  totalAmount        Decimal       @map("total_amount") @db.Decimal(14, 2)
+  cost               Decimal?      @db.Decimal(14, 2)
+  currency           String
+  lines              Json
+  issuedAt           DateTime?     @map("issued_at") @db.Timestamptz(3)
+  createdById        String?       @map("created_by_id")
+  createdByEmail     String?       @map("created_by_email")
+  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  contract Contract @relation(fields: [contractId, tenantId], references: [id, tenantId], onDelete: Restrict)
+
+  @@unique([tenantId, number])
+  @@index([contractId, periodStart])
+  @@map("invoices")
+}
+
+/// Compteurs de numérotation propres à chaque entreprise (relevés, interventions).
+model TenantSequence {
+  tenantId String @map("tenant_id") @db.Uuid
+  name     String
+  value    Int    @default(0)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@id([tenantId, name])
+  @@map("tenant_sequences")
+}
+
+enum InterventionType {
+  CORRECTIVE
+  PREVENTIVE
+  INSTALLATION
+  OTHER
+}
+
+enum InterventionStatus {
+  OPEN
+  SCHEDULED
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum InterventionPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+/// Intervention technique sur une machine : panne signalée, maintenance planifiée, installation.
+model Intervention {
+  id              String               @id @default(uuid(7)) @db.Uuid
+  tenantId        String               @map("tenant_id") @db.Uuid
+  number          Int
+  printerId       String               @map("printer_id") @db.Uuid
+  type            InterventionType     @default(CORRECTIVE)
+  status          InterventionStatus   @default(OPEN)
+  priority        InterventionPriority @default(NORMAL)
+  title           String
+  description     String?
+  reportedAt      DateTime             @default(now()) @map("reported_at") @db.Timestamptz(3)
+  reportedById    String?              @map("reported_by_id")
+  reportedByEmail String?              @map("reported_by_email")
+  scheduledAt     DateTime?            @map("scheduled_at") @db.Timestamptz(3)
+  startedAt       DateTime?            @map("started_at") @db.Timestamptz(3)
+  completedAt     DateTime?            @map("completed_at") @db.Timestamptz(3)
+  assigneeId      String?              @map("assignee_id")
+  assigneeName    String?              @map("assignee_name")
+  /// Compteur total de la machine à la fin de l'intervention.
+  counter         Int?
+  laborMinutes    Int?                 @map("labor_minutes")
+  laborCost       Decimal?             @map("labor_cost") @db.Decimal(14, 2)
+  partsCost       Decimal?             @map("parts_cost") @db.Decimal(14, 2)
+  resolution      String?
+  planId          String?              @map("plan_id") @db.Uuid
+  createdAt       DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant  Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  printer Printer          @relation(fields: [printerId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  plan    MaintenancePlan? @relation(fields: [planId, tenantId], references: [id, tenantId], onDelete: Restrict)
+
+  @@unique([tenantId, number])
+  @@index([tenantId, status, reportedAt(sort: Desc)])
+  @@index([printerId, completedAt])
+  @@map("interventions")
+}
+
+/// Plan de maintenance préventive d'une machine : tous les N pages et/ou tous les N jours.
+model MaintenancePlan {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  printerId     String   @map("printer_id") @db.Uuid
+  name          String
+  intervalPages Int?     @map("interval_pages")
+  intervalDays  Int?     @map("interval_days")
+  active        Boolean  @default(true)
+  notes         String?
+  /// Point de départ tant qu'aucune maintenance n'a été faite : date et compteur à la création.
+  startCounter  Int?     @map("start_counter")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  printer       Printer        @relation(fields: [printerId, tenantId], references: [id, tenantId], onDelete: Restrict)
+  interventions Intervention[]
+
+  @@unique([printerId, name])
+  @@unique([id, tenantId])
+  @@map("maintenance_plans")
 }

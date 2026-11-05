@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { Prisma, withTenant, type PrismaClient } from '@arksen/database';
 import type {
+  PrintedJob,
   CmykChannel,
   Page,
   PrintJob,
@@ -11,6 +12,7 @@ import type {
 import type {
   ListQuery,
   PrintJobEstimateQuery,
+  PrintJobPrintedInput,
   PrintJobUpdateInput,
   PrintJobUploadInput,
 } from '@arksen/validation';
@@ -94,6 +96,45 @@ const CHANNEL_KEYS = {
   YELLOW: 'yellow',
   BLACK: 'black',
 } as const satisfies Record<CmykChannel, keyof PrintJobPage['coverage']>;
+
+/** Surface d'une feuille de chaque format, en A4. */
+const FORMAT_AREA = { A4: 1, A3: 2, SRA3: (320 * 450) / (210 * 297) } as const;
+
+const printedSelect = {
+  id: true,
+  name: true,
+  pageCount: true,
+  copies: true,
+  printedAt: true,
+  printedByEmail: true,
+  tonerCost: true,
+  paperCost: true,
+  salePrice: true,
+  printer: { select: { id: true, name: true } },
+} as const;
+type PrintedRow = Prisma.PrintJobGetPayload<{ select: typeof printedSelect }>;
+
+function toPrinted(row: PrintedRow, currency: string): PrintedJob {
+  const toner = row.tonerCost === null ? null : Number(row.tonerCost);
+  const paper = row.paperCost === null ? null : Number(row.paperCost);
+  const cost = toner === null && paper === null ? null : round((toner ?? 0) + (paper ?? 0), 2);
+  const sale = row.salePrice === null ? null : Number(row.salePrice);
+  return {
+    id: row.id,
+    name: row.name,
+    pageCount: row.pageCount,
+    printer: row.printer,
+    copies: row.copies,
+    printedAt: row.printedAt!.toISOString(),
+    tonerCost: toner === null ? null : round(toner, 2),
+    paperCost: paper === null ? null : round(paper, 2),
+    cost,
+    salePrice: sale,
+    margin: sale === null || cost === null ? null : round(sale - cost, 2),
+    currency,
+    printedByEmail: row.printedByEmail,
+  };
+}
 
 function round(value: number, digits: number): number {
   const factor = 10 ** digits;
@@ -259,6 +300,127 @@ export class PrintJobsService {
       ...context,
     });
     return this.get(tenantId, jobId);
+  }
+
+  /**
+   * Enregistre un travail comme imprimé : son coût de revient (toner estimé par le moteur CMJN
+   * sur la machine, papier selon ses réglages de coût) et son prix de vente éventuel.
+   */
+  async markPrinted(
+    tenantId: string,
+    jobId: string,
+    input: PrintJobPrintedInput,
+    actor: Principal,
+    context: RequestContext,
+  ): Promise<PrintedJob> {
+    const estimate = await this.estimate(tenantId, jobId, {
+      printerId: input.printerId,
+      copies: input.copies,
+      useCalibration: true,
+    });
+    const paperCost = await withTenant(this.appPrisma, tenantId, async (tx) => {
+      const settings = await tx.printerCostSettings.findUnique({
+        where: { printerId: input.printerId },
+        include: { paperType: { select: { format: true, sheetsPerReam: true, reamPrice: true } } },
+      });
+      const paper = settings?.paperType;
+      if (!paper || paper.reamPrice === null) return null;
+      // Pages A4 équivalentes ramenées au format du papier, deux pages par feuille en recto verso.
+      const sheets =
+        (estimate.a4EquivalentPages / FORMAT_AREA[paper.format]) *
+        (1 - Number(settings.duplexPercent) / 200);
+      return round((sheets * Number(paper.reamPrice)) / paper.sheetsPerReam, 4);
+    });
+    const row = await withTenant(this.appPrisma, tenantId, (tx) =>
+      tx.printJob.update({
+        where: { id: jobId },
+        data: {
+          printerId: input.printerId,
+          copies: input.copies,
+          printedAt: input.printedAt ? new Date(input.printedAt) : new Date(),
+          printedByEmail: actor.email,
+          tonerCost: estimate.totals.costEstimated,
+          paperCost,
+          salePrice: input.salePrice ?? null,
+        },
+        select: printedSelect,
+      }),
+    );
+    await this.audit.record({
+      action: 'print_job.printed',
+      tenantId,
+      actorUserId: actor.userId,
+      actorEmail: actor.email,
+      targetType: 'print_job',
+      targetId: jobId,
+      metadata: { name: row.name, copies: row.copies, salePrice: input.salePrice ?? null },
+      ...context,
+    });
+    return toPrinted(row, estimate.currency);
+  }
+
+  /** Retire un travail du registre des impressions (enregistré par erreur). */
+  async unmarkPrinted(
+    tenantId: string,
+    jobId: string,
+    actor: Principal,
+    context: RequestContext,
+  ): Promise<void> {
+    const row = await withTenant(this.appPrisma, tenantId, async (tx) => {
+      const found = await tx.printJob.findFirst({
+        where: { id: jobId, tenantId, printedAt: { not: null } },
+      });
+      if (!found) throw new NotFoundException('Impression introuvable.');
+      return tx.printJob.update({
+        where: { id: jobId },
+        data: {
+          printedAt: null,
+          printedByEmail: null,
+          tonerCost: null,
+          paperCost: null,
+          salePrice: null,
+        },
+      });
+    });
+    await this.audit.record({
+      action: 'print_job.unprinted',
+      tenantId,
+      actorUserId: actor.userId,
+      actorEmail: actor.email,
+      targetType: 'print_job',
+      targetId: jobId,
+      metadata: { name: row.name },
+      ...context,
+    });
+  }
+
+  /** Registre des impressions : travaux imprimés, du plus récent au plus ancien. */
+  printed(tenantId: string, query: ListQuery): Promise<Page<PrintedJob>> {
+    return withTenant(this.appPrisma, tenantId, async (tx) => {
+      const { currency } = await tx.tenant.findUniqueOrThrow({
+        where: { id: tenantId },
+        select: { currency: true },
+      });
+      const where: Prisma.PrintJobWhereInput = {
+        tenantId,
+        printedAt: { not: null },
+        ...(query.search ? { name: { contains: query.search, mode: 'insensitive' } } : {}),
+      };
+      const total = await tx.printJob.count({ where });
+      const rows = await tx.printJob.findMany({
+        where,
+        select: printedSelect,
+        orderBy: { printedAt: 'desc' },
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+      });
+      return {
+        items: rows.map((row) => toPrinted(row, currency)),
+        total,
+        page: query.page,
+        pageSize: query.pageSize,
+      };
+    });
   }
 
   async remove(

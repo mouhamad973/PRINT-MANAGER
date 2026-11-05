@@ -12,6 +12,10 @@ import { AlertsModule } from './alerts/alerts.module.js';
 import { CollectorModule } from './collector/collector.module.js';
 import { PrintJobsModule } from './print-jobs/print-jobs.module.js';
 import { StocksModule } from './stocks/stocks.module.js';
+import { ContractsModule } from './contracts/contracts.module.js';
+import { CostsModule } from './costs/costs.module.js';
+import { MaintenanceModule } from './maintenance/maintenance.module.js';
+import { PaperModule } from './paper/paper.module.js';
 import { PrinterModelsModule } from './printer-models/printer-models.module.js';
 import { PrintersModule } from './printers/printers.module.js';
 import { RedisModule } from './redis/redis.module.js';
@@ -42,6 +46,10 @@ import { UsersModule } from './users/users.module.js';
     CollectorModule,
     AlertsModule,
     StocksModule,
+    PaperModule,
+    CostsModule,
+    ContractsModule,
+    MaintenanceModule,
   ],
 })
 export class AppModule {}

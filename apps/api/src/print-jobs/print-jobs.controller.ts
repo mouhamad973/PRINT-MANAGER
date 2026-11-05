@@ -1,11 +1,19 @@
-import type { Page, PrintJob, PrintJobEstimate, PrintJobSummary } from '@arksen/shared-types';
+import type {
+  Page,
+  PrintedJob,
+  PrintJob,
+  PrintJobEstimate,
+  PrintJobSummary,
+} from '@arksen/shared-types';
 import {
   printJobEstimateQuerySchema,
   printJobListQuerySchema,
+  printJobPrintedSchema,
   printJobUpdateSchema,
   printJobUploadSchema,
   type ListQuery,
   type PrintJobEstimateQuery,
+  type PrintJobPrintedInput,
   type PrintJobUpdateInput,
   type PrintJobUploadInput,
 } from '@arksen/validation';
@@ -82,6 +90,45 @@ export class PrintJobsController {
     @Query(new ZodPipe(printJobListQuerySchema)) query: ListQuery,
   ): Promise<Page<PrintJobSummary>> {
     return this.jobs.list(tenantId, query);
+  }
+
+  @Get('printed')
+  @RequirePermissions('print-jobs:read', 'costs:read')
+  @ApiOperation({
+    summary: 'Registre des impressions : travaux imprimés, coût de revient et marge',
+  })
+  printed(
+    @Param('tenantId') tenantId: string,
+    @Query(new ZodPipe(printJobListQuerySchema)) query: ListQuery,
+  ): Promise<Page<PrintedJob>> {
+    return this.jobs.printed(tenantId, query);
+  }
+
+  @Post(':jobId/printed')
+  @RequirePermissions('print-jobs:manage', 'consumption:read')
+  @ApiOperation({ summary: 'Enregistre le travail comme imprimé, avec son coût de revient' })
+  @ApiBody({ schema: openApiSchema(printJobPrintedSchema) })
+  markPrinted(
+    @Param('tenantId') tenantId: string,
+    @Param('jobId', ParseUUIDPipe) jobId: string,
+    @Body(new ZodPipe(printJobPrintedSchema)) input: PrintJobPrintedInput,
+    @CurrentPrincipal() actor: Principal,
+    @CurrentRequestContext() context: RequestContext,
+  ): Promise<PrintedJob> {
+    return this.jobs.markPrinted(tenantId, jobId, input, actor, context);
+  }
+
+  @Delete(':jobId/printed')
+  @HttpCode(204)
+  @RequirePermissions('print-jobs:manage')
+  @ApiOperation({ summary: 'Retire un travail du registre des impressions' })
+  async unmarkPrinted(
+    @Param('tenantId') tenantId: string,
+    @Param('jobId', ParseUUIDPipe) jobId: string,
+    @CurrentPrincipal() actor: Principal,
+    @CurrentRequestContext() context: RequestContext,
+  ): Promise<void> {
+    await this.jobs.unmarkPrinted(tenantId, jobId, actor, context);
   }
 
   @Get(':jobId')

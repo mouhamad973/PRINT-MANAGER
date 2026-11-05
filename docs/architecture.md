@@ -115,6 +115,13 @@ La matrice des rôles est définie dans le code (`packages/shared-types/src/acce
 | `toner-replacements:manage` |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |             |
 | `alerts:read`               |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |             |
 | `alerts:manage`             |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |             |
+| `costs:read`                |     Oui     |     Oui      |       Oui        |            |     Oui     |             |
+| `costs:manage`              |     Oui     |     Oui      |       Oui        |            |             |             |
+| `contracts:read`            |     Oui     |     Oui      |       Oui        |            |             |             |
+| `contracts:manage`          |     Oui     |     Oui      |       Oui        |            |             |             |
+| `interventions:read`        |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |     Oui     |
+| `interventions:report`      |     Oui     |     Oui      |       Oui        |    Oui     |     Oui     |     Oui     |
+| `interventions:manage`      |     Oui     |     Oui      |       Oui        |    Oui     |             |             |
 
 Un administrateur client ne peut ni attribuer le rôle Super Administrateur, ni modifier son propre rôle ou statut.
 
@@ -350,6 +357,54 @@ La valeur du stock suit le dernier coût de réception, à défaut le prix du to
 | Toner épuisé         | Critique      | Niveau SNMP de 2 % ou moins                                | À chaque état reçu d'un agent           |
 
 Les alertes de niveau se résolvent aussi quand un remplacement est enregistré. L'évaluation horaire des ruptures prévues tourne dans l'API ; un verrou Redis la confie à une seule instance.
+
+## Coûts, contrats et maintenance
+
+**Papier.** Un papier (`paper_types`) a un format, un grammage, un nombre de feuilles par rame et un prix de rame. Ses stocks par site (`paper_stocks`, en rames) suivent le même registre immuable que les toners (`paper_movements`), avec les mêmes déclencheurs : solde sous verrou et stock jamais négatif. Les alertes de papier sont `PAPER_LOW` et `PAPER_OUT`. La couverture d'un stock suit les pages des machines du site réglées sur ce papier.
+
+**Coûts d'impression et coût copie.** Pour chaque machine et pour une période (`GET /costs`), les coûts additionnés sont les suivants :
+
+| Poste         | Source                                                                                        |
+| ------------- | --------------------------------------------------------------------------------------------- |
+| Toner         | Consommation estimée par le moteur CMJN (pages relevées, aplat, calibration), au prix d'achat |
+| Papier        | Feuilles = pages × (1 − recto verso / 2), au prix de la feuille du papier de la machine       |
+| Interventions | Main-d'œuvre et pièces des interventions terminées sur la période                             |
+| Coûts fixes   | Location ou amortissement mensuel, au prorata des jours                                       |
+
+Le papier, la part de recto verso et les coûts fixes se règlent par machine (`printer_cost_settings`). Le coût copie se calcule ainsi :
+
+- une page noir et blanc porte le toner noir et sa part des coûts communs (papier, interventions, coûts fixes) ;
+- une page couleur y ajoute les toners cyan, magenta et jaune, répartis sur les seules pages couleur.
+
+Un coût inconnu reste inconnu : un toner sans prix ou un papier non renseigné apparaît comme une lacune, jamais comme zéro.
+
+**Contrats et relevés de facturation.** Un contrat au coût copie (`contracts`) fixe un forfait par période, des pages incluses et le prix des pages au-delà. Il couvre des machines, et une machine n'appartient qu'à un contrat (`contract_printers`).
+
+Un relevé (`invoices`) se construit en trois temps :
+
+- il reprend les pages relevées de chaque machine sur la période, réparties entre les relevés de compteurs ;
+- il calcule le montant et le coût de revient des machines, donc la marge ;
+- il naît brouillon, puis reçoit à l'émission un numéro propre à l'entreprise et à l'année (`REL-2026-0001`, compteur `tenant_sequences` incrémenté sous verrou).
+
+Des contraintes garantissent que les pages supplémentaires et le total découlent des pages relevées. Un déclencheur refuse toute modification d'un relevé émis, sauf son annulation, ainsi que sa suppression.
+
+**Interventions.** Une intervention (`interventions`, numérotée par entreprise) suit le cycle à traiter, planifiée, en cours, puis terminée ou annulée.
+
+- Tout rôle d'entreprise peut signaler une panne (`interventions:report`).
+- Planifier, affecter, conduire et clore une intervention demande `interventions:manage`. Une intervention n'est confiée qu'à un administrateur, un responsable ou un technicien.
+- La clôture exige le compte rendu ; elle relève le compteur de la machine et enregistre la main-d'œuvre et les pièces, qui entrent dans les coûts.
+
+**Maintenance préventive.** Un plan (`maintenance_plans`) prévoit une révision tous les N pages et/ou tous les N jours.
+
+- Il part de la dernière intervention préventive terminée, ou de sa mise en place (date et compteur).
+- L'intervalle le plus avancé l'emporte. La maintenance est « à prévoir » à 90 % (alerte `MAINTENANCE_DUE`) et « dépassée » à 100 % (`MAINTENANCE_OVERDUE`).
+- L'échéance d'un intervalle en pages est estimée au rythme d'impression des 90 derniers jours.
+- Les échéances sont réévaluées toutes les heures (verrou Redis) et à chaque changement de plan ou d'intervention. Une intervention préventive terminée remet le plan à zéro.
+
+**Impressions.** Un fichier analysé (Phase 6) s'enregistre comme imprimé sur une machine, avec un nombre d'exemplaires et un prix de vente facultatif.
+
+- Son coût de revient est figé à l'enregistrement : le toner vient de l'estimation du moteur CMJN, le papier des réglages de la machine.
+- Le registre des impressions en donne la marge.
 
 ## Origine des données
 

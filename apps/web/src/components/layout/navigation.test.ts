@@ -48,7 +48,7 @@ describe('navigationFor', () => {
   });
 
   it('garde visibles les modules à venir, marqués de leur phase', () => {
-    expect(labels(current('USER'))).toContain('Impressions');
+    expect(labels(current('USER'))).toContain('Rapports');
   });
 
   it('ouvre le parc à tous les rôles d’entreprise et à la plateforme', () => {

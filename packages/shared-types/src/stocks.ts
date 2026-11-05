@@ -157,6 +157,10 @@ export const ALERT_TYPES = [
   'STOCK_FORECAST',
   'TONER_LOW',
   'TONER_EMPTY',
+  'PAPER_LOW',
+  'PAPER_OUT',
+  'MAINTENANCE_DUE',
+  'MAINTENANCE_OVERDUE',
 ] as const;
 export type AlertType = (typeof ALERT_TYPES)[number];
 export const ALERT_TYPE_LABELS: Record<AlertType, string> = {
@@ -165,6 +169,10 @@ export const ALERT_TYPE_LABELS: Record<AlertType, string> = {
   STOCK_FORECAST: 'Rupture prévue',
   TONER_LOW: 'Toner bientôt épuisé',
   TONER_EMPTY: 'Toner épuisé',
+  PAPER_LOW: 'Papier sous le seuil',
+  PAPER_OUT: 'Rupture de papier',
+  MAINTENANCE_DUE: 'Maintenance à prévoir',
+  MAINTENANCE_OVERDUE: 'Maintenance dépassée',
 };
 
 export const ALERT_SEVERITIES = ['WARNING', 'CRITICAL'] as const;
@@ -193,6 +201,8 @@ export interface Alert {
   stockId: string | null;
   site: { id: string; name: string } | null;
   channel: CmykChannel | null;
+  paperStockId: string | null;
+  planId: string | null;
   openedAt: string;
   lastSeenAt: string;
   acknowledgedAt: string | null;

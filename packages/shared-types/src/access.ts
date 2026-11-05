@@ -58,6 +58,20 @@ export const PERMISSIONS = [
   'alerts:read',
   /** Prendre en compte et clôturer les alertes. */
   'alerts:manage',
+  /** Consulter les coûts d'impression et le coût copie. */
+  'costs:read',
+  /** Régler les coûts des machines : papier, recto verso, coûts fixes. */
+  'costs:manage',
+  /** Consulter les contrats clients et leurs relevés de facturation. */
+  'contracts:read',
+  /** Gérer les contrats, établir et émettre les relevés de facturation. */
+  'contracts:manage',
+  /** Consulter les interventions et les plans de maintenance. */
+  'interventions:read',
+  /** Signaler une panne : ouvrir une intervention. */
+  'interventions:report',
+  /** Planifier, affecter, conduire et clore les interventions ; gérer la maintenance préventive. */
+  'interventions:manage',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -85,6 +99,13 @@ const FLEET_MANAGEMENT: readonly Permission[] = [
   'toner-replacements:manage',
   'alerts:read',
   'alerts:manage',
+  'costs:read',
+  'costs:manage',
+  'contracts:read',
+  'contracts:manage',
+  'interventions:read',
+  'interventions:report',
+  'interventions:manage',
 ];
 
 export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
@@ -106,6 +127,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
     'toner-replacements:manage',
     'alerts:read',
     'alerts:manage',
+    'interventions:read',
+    'interventions:report',
+    'interventions:manage',
   ],
   STOCK_MANAGER: [
     ...TENANT_BASE,
@@ -116,8 +140,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
     'toner-replacements:manage',
     'alerts:read',
     'alerts:manage',
+    'costs:read',
+    'interventions:read',
+    'interventions:report',
   ],
-  USER: TENANT_BASE,
+  USER: [...TENANT_BASE, 'interventions:read', 'interventions:report'],
 };
 
 /** Libellés des permissions d'entreprise, pour la matrice des rôles. */
@@ -142,6 +169,13 @@ export const PERMISSION_LABELS: Partial<Record<Permission, string>> = {
   'toner-replacements:manage': 'Enregistrer les remplacements de toner',
   'alerts:read': 'Consulter les alertes',
   'alerts:manage': 'Prendre en compte et clôturer les alertes',
+  'costs:read': 'Consulter les coûts d’impression',
+  'costs:manage': 'Régler les coûts des machines',
+  'contracts:read': 'Consulter les contrats et la facturation',
+  'contracts:manage': 'Gérer les contrats et émettre les relevés',
+  'interventions:read': 'Consulter les interventions et la maintenance',
+  'interventions:report': 'Signaler une panne',
+  'interventions:manage': 'Conduire les interventions et la maintenance',
   'users:read': 'Voir les utilisateurs',
   'users:manage': 'Gérer les utilisateurs',
   'audit:read': 'Consulter le journal d’audit',

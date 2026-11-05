@@ -89,8 +89,13 @@ export const NAVIGATION: NavGroup[] = [
         href: '/collecte',
         permission: 'agents:read',
       },
-      // Registre des travaux d'impression et de leurs coûts réels (phase 9).
-      { label: 'Impressions', icon: ClipboardList, phase: 9 },
+      // Registre des travaux imprimés, de leur coût de revient et de leur marge.
+      {
+        label: 'Impressions',
+        icon: ClipboardList,
+        href: '/impressions',
+        permission: 'costs:read',
+      },
     ],
   },
   {
@@ -111,16 +116,26 @@ export const NAVIGATION: NavGroup[] = [
     items: [
       { label: 'Toners', icon: Blocks, href: '/toners', permission: 'stocks:read' },
       { label: 'Stocks', icon: Package, href: '/stocks', permission: 'stocks:read' },
-      { label: 'Papier', icon: ScrollText, phase: 9 },
+      { label: 'Papier', icon: ScrollText, href: '/papier', permission: 'stocks:read' },
     ],
   },
   {
     label: 'Gestion',
     items: [
-      { label: 'Coûts d’impression', icon: Receipt, phase: 9 },
-      { label: 'Contrats', icon: FileSignature, phase: 9 },
-      { label: 'Maintenance', icon: Wrench, phase: 9 },
-      { label: 'Interventions', icon: HardHat, phase: 9 },
+      { label: 'Coûts d’impression', icon: Receipt, href: '/couts', permission: 'costs:read' },
+      { label: 'Contrats', icon: FileSignature, href: '/contrats', permission: 'contracts:read' },
+      {
+        label: 'Maintenance',
+        icon: Wrench,
+        href: '/maintenance',
+        permission: 'interventions:read',
+      },
+      {
+        label: 'Interventions',
+        icon: HardHat,
+        href: '/interventions',
+        permission: 'interventions:read',
+      },
       { label: 'Rapports', icon: FileBarChart, phase: 10 },
     ],
   },

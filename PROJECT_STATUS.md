@@ -1,6 +1,6 @@
 # État du projet ARKSEN PRINT MANAGER
 
-Dernière mise à jour : 7 novembre 2026.
+Dernière mise à jour : 8 novembre 2026.
 
 ## Avancement
 
@@ -13,8 +13,8 @@ Dernière mise à jour : 7 novembre 2026.
 | 5     | Moteur de calcul de consommation CMJN        | Terminée et validée                |
 | 6     | Analyse PDF                                  | Terminée et validée                |
 | 7     | Collecteur SNMP et agent Windows             | Terminée et validée                |
-| 8     | Gestion des consommables et stocks           | Terminée, en attente de validation |
-| 9     | Coûts, maintenance et contrats               | À faire                            |
+| 8     | Gestion des consommables et stocks           | Terminée et validée                |
+| 9     | Coûts, maintenance et contrats               | Terminée, en attente de validation |
 | 10    | Rapports et déploiement commercial           | À faire                            |
 
 ## Phase 1 : Architecture et configuration
@@ -86,6 +86,95 @@ Comportement en panne, vérifié sur la stack réelle :
 - **Starlette** signale la dépréciation de `httpx` pour son client de test. Cela ne concerne que les tests.
 - **Licences AGPL :** résolu en Phase 6. PyMuPDF et Ghostscript ont été écartés au profit de PDFium (`pypdfium2`, BSD et Apache 2.0) et de LittleCMS (MIT).
 - **Aucun commit :** résolu, chaque phase est commitée et poussée.
+
+## Phase 9 : Coûts, maintenance et contrats
+
+### Livré
+
+- **Coûts d'impression** (page **Coûts d'impression**) : pour chaque machine et pour une période, on additionne :
+  - le toner estimé par le moteur CMJN ;
+  - le papier (pages × (1 − recto verso / 2) × prix de la feuille) ;
+  - les interventions terminées ;
+  - les coûts fixes mensuels au prorata.
+    Le papier, le recto verso et les coûts fixes se règlent par machine. Les lacunes sont signalées, jamais comptées pour zéro.
+- **Coût copie :** la page noir et blanc (toner noir et coûts communs) et la page couleur (avec les toners cyan, magenta et jaune répartis sur les pages couleur), par machine et pour le parc.
+- **Gestion du papier** (page **Papier**) :
+  - types de papier : format, grammage, rame, prix ;
+  - stocks par site en rames, sur le même registre immuable que les toners ;
+  - seuils, alertes de papier bas ou épuisé, couverture d'après les pages des machines.
+- **Contrats clients** (page **Contrats**) : contrats au coût copie (forfait, pages incluses, prix des pages au-delà) et machines couvertes, une machine par contrat. Les relevés de facturation :
+  - reprennent les pages relevées sur les compteurs ;
+  - calculent le montant, le coût de revient et la marge ;
+  - sont numérotés à l'émission (`REL-2026-0001`), puis figés, annulables mais jamais modifiables ni supprimables.
+- **Interventions techniques** (page **Interventions**) :
+  - tout rôle peut signaler une panne ;
+  - les techniciens planifient, affectent, conduisent et closent, avec compte rendu, compteur, temps, main-d'œuvre et pièces ;
+  - les coûts entrent dans le coût d'impression.
+- **Maintenance préventive** (page **Maintenance**) : plans tous les N pages et/ou N jours, avec un avancement vers l'échéance et une échéance estimée au rythme d'impression.
+  - Alertes de maintenance à prévoir (90 %) ou dépassée, réévaluées chaque heure.
+  - Planification en un clic. Une révision terminée remet le plan à zéro.
+- **Impressions** (page **Impressions**) : un fichier analysé s'enregistre comme imprimé (machine, exemplaires, prix de vente). Son coût de revient (toner et papier) est figé, et le registre donne la marge.
+
+Méthodes et décisions : [docs/architecture.md](docs/architecture.md), section « Coûts, contrats et maintenance ».
+
+### Critères d'acceptation
+
+| Critère                                        | Résultat                                                                        |
+| ---------------------------------------------- | ------------------------------------------------------------------------------- |
+| Coûts d'impression                             | Validé : toner, papier, interventions, coûts fixes, par machine et pour le parc |
+| Gestion du papier                              | Validé : types, stocks par site, registre immuable, seuils, alertes             |
+| Coût copie                                     | Validé : page noir et blanc et page couleur                                     |
+| Contrats clients                               | Validé : contrats au coût copie, machines couvertes, relevés numérotés et figés |
+| Interventions techniques                       | Validé : signalement, planification, affectation, clôture avec coûts            |
+| Maintenance préventive                         | Validé : plans en pages ou en jours, échéance, alertes, remise à zéro           |
+| `build`, `typecheck`, `lint` et `test` passent | Validé : 30 tâches sur 30, sans cache                                           |
+
+Détail des tests :
+
+| Paquet                 | Tests | Dont nouveaux en Phase 9 |
+| ---------------------- | ----- | ------------------------ |
+| `@arksen/api`          | 83    | 13                       |
+| `@arksen/validation`   | 72    | 7                        |
+| `@arksen/analytics`    | 68    |                          |
+| `@arksen/collector`    | 43    |                          |
+| `@arksen/web`          | 34    |                          |
+| `@arksen/shared-types` | 12    |                          |
+| `@arksen/database`     | 2     |                          |
+| `@arksen/workers`      | 2     |                          |
+
+Soit 316 tests unitaires et d'intégration, et **115 tests de bout en bout** sur la stack Docker réelle (12 nouveaux, dans `apps/api/test/e2e/operations.e2e.test.ts`, tous réussis du premier coup), avec des valeurs calculées à la main.
+
+- **Coûts :** 12 000 pages dont 2 000 couleur, toner 96 (72 noir, 24 couleur), papier 45 000 (9 000 feuilles à 5 en recto verso à 50 %), intervention 5 000. Total 50 096, coût copie noir et blanc 50 072 / 12 000.
+- **Relevé :** forfait 10 000, 5 000 pages noir et blanc en plus à 5 et 1 000 pages couleur en plus à 30. Total 65 000, marge 14 904. Numérotés `REL-AAAA-0001` puis `0002`, figés en base même pour le rôle système, puis annulés.
+- **Intervention :** signalée par un utilisateur, qui ne peut ni la planifier ni la conduire ; clôture refusée sans compte rendu ; compteur 24 000 relevé à la clôture.
+- **Maintenance :** plan de 14 000 pages à 13 000 pages (93 %), soit à prévoir avec son alerte, puis remise à zéro par l'intervention préventive.
+- **Papier :** stock en rames, alerte de seuil, sortie refusée (« Stock insuffisant : 4 rame(s) »).
+- **Impression enregistrée :** toner 1,20, papier 37,50, marge 961,30.
+- **Isolation :** entre entreprises, au niveau de l'API et de la base (RLS).
+
+Vérification de la stack (`pnpm stack:smoke`) : 11 contrôles sur 11.
+
+Vérification visuelle : pages Coûts d'impression, Papier, Contrats, Interventions, Maintenance et Impressions, en clair, en sombre et sur mobile, sans erreur dans la console. Données de démonstration dans `demo-interface`, notées « démo » : deux papiers, des réglages de coût, un contrat avec un relevé émis et un brouillon, trois interventions, trois plans de maintenance et une impression enregistrée.
+
+Corrections apportées :
+
+- couleurs de la répartition des coûts mieux distinguées ;
+- colonne des pages sans retour à la ligne, sans mention couleur pour une machine noir et blanc ;
+- date des interventions placée sous le titre sur mobile.
+
+### Écarts par rapport au plan
+
+- **Relevés de facturation plutôt que factures :** un relevé chiffre ce qu'il faut facturer et en donne la marge. La facture légale (TVA, mentions obligatoires, export comptable) dépend du pays et du logiciel comptable du client ; elle reste à cadrer.
+- **Pages facturées :** ce sont les pages relevées, réparties à parts égales entre deux relevés. La part de la période couverte par des relevés est affichée pour chaque machine.
+- **Module « Impressions » :** c'est le registre des fichiers analysés puis imprimés. Les travaux envoyés directement aux machines, sans analyse, n'y figurent pas : il faudrait un serveur d'impression.
+
+### Points restants
+
+- **Rentabilité par client et rapports :** les relevés donnent la marge par contrat ; les rapports PDF, Excel et CSV et la rentabilité consolidée relèvent de la Phase 10.
+- **Facture légale et export comptable :** à cadrer avec un client (voir les écarts).
+- **Pièces détachées :** les interventions enregistrent le coût des pièces, sans stock de pièces.
+- **Requêtes concurrentes dans une transaction :** toujours ouvert (voir Phase 5).
+- **Données de test :** entreprises `e2e-ops-…` laissées par les tests.
 
 ## Phase 8 : Gestion des consommables et stocks
 
@@ -627,6 +716,21 @@ Vérification dans le navigateur : redirection vers `/login` avec retour à la p
 - **Points de la Phase 1 toujours ouverts :** ESLint 10, licences AGPL de la Phase 6, aucun commit.
 
 ## Journal des modifications
+
+### 8 novembre 2026 : Phase 9
+
+- **Base de données :** migration `20261108000000_operations` :
+  - tables `paper_types`, `paper_stocks`, `paper_movements` (registre immuable), `printer_cost_settings`, `contracts`, `contract_printers`, `invoices` (figés une fois émis), `tenant_sequences`, `interventions`, `maintenance_plans` ;
+  - champs d'impression des travaux analysés et nouveaux types d'alerte ;
+  - contraintes et RLS.
+- **API :** modules `paper`, `costs` (modèle de coût testé), `contracts` (calcul des relevés testé), `maintenance` (état des plans testé, évaluation horaire), registre des impressions dans `print-jobs`, numérotation par entreprise.
+- **Contrats :** `packages/shared-types/src/operations.ts`, `packages/validation/src/operations.ts`, permissions `costs:*`, `contracts:*` et `interventions:*`.
+- **Web :**
+  - pages Coûts d'impression, Papier, Contrats, Interventions, Maintenance et Impressions ;
+  - enregistrement de l'impression depuis le rapport de préproduction ;
+  - navigation, journal d'audit et indicateurs à venir du tableau de bord.
+- **Tests :** `operations.e2e.test.ts`, coûts, relevés, plans de maintenance, schémas.
+- **Documentation :** `docs/architecture.md` (section « Coûts, contrats et maintenance » et matrice des droits), `docs/development.md`.
 
 ### 7 novembre 2026 : Phase 8
 

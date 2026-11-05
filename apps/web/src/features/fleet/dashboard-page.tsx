@@ -53,8 +53,8 @@ function share(part: number, total: number): string {
 
 /** Indicateurs du cahier des charges qui arrivent avec les phases suivantes : annoncés, jamais simulés. */
 const UPCOMING = [
-  { label: 'Coûts d’impression et coût copie', phase: 9 },
-  { label: 'Rapports PDF et Excel', phase: 10 },
+  { label: 'Rapports PDF, Excel et CSV', phase: 10 },
+  { label: 'Statistiques avancées et rentabilité par client', phase: 10 },
 ];
 
 function SitesChart({ data }: { data: FleetDashboard['bySite'] }) {

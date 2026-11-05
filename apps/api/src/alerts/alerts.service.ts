@@ -34,6 +34,8 @@ export interface AlertSpec {
   stockId?: string | null;
   siteId?: string | null;
   channel?: CmykChannel | null;
+  paperStockId?: string | null;
+  planId?: string | null;
 }
 
 const alertInclude = {
@@ -66,11 +68,13 @@ export class AlertsService {
   async raise(tx: TransactionClient, tenantId: string, spec: AlertSpec): Promise<void> {
     await tx.$executeRaw`
       INSERT INTO alerts (id, tenant_id, type, severity, status, dedupe_key, title, message,
-                          printer_id, stock_id, site_id, channel, opened_at, last_seen_at)
+                          printer_id, stock_id, site_id, channel, paper_stock_id, plan_id,
+                          opened_at, last_seen_at)
       VALUES (gen_random_uuid(), ${tenantId}::uuid, ${spec.type}, ${spec.severity}::"AlertSeverity",
               'OPEN', ${spec.dedupeKey}, ${spec.title}, ${spec.message},
               ${spec.printerId ?? null}::uuid, ${spec.stockId ?? null}::uuid,
-              ${spec.siteId ?? null}::uuid, ${spec.channel ?? null}::"TonerChannel", now(), now())
+              ${spec.siteId ?? null}::uuid, ${spec.channel ?? null}::"TonerChannel",
+              ${spec.paperStockId ?? null}::uuid, ${spec.planId ?? null}::uuid, now(), now())
       ON CONFLICT (tenant_id, dedupe_key) WHERE status <> 'RESOLVED'
       DO UPDATE SET last_seen_at = now(), severity = EXCLUDED.severity,
                     title = EXCLUDED.title, message = EXCLUDED.message`;
@@ -158,6 +162,42 @@ export class AlertsService {
       });
     } else {
       await this.resolve(tx, tenantId, [low, empty]);
+    }
+  }
+
+  /** Seuil minimum et rupture d'un stock de papier, en rames. */
+  async evaluatePaperStock(
+    tx: TransactionClient,
+    tenantId: string,
+    stock: { id: string; siteId: string; quantity: number; minQuantity: number },
+    label: string,
+  ): Promise<void> {
+    const low = `paper-low:${stock.id}`;
+    const out = `paper-out:${stock.id}`;
+    const level = stockLevel(stock.quantity, stock.minQuantity);
+    const target = { paperStockId: stock.id, siteId: stock.siteId };
+    if (level === 'OUT') {
+      await this.resolve(tx, tenantId, [low]);
+      await this.raise(tx, tenantId, {
+        type: 'PAPER_OUT',
+        severity: 'CRITICAL',
+        dedupeKey: out,
+        title: `Rupture de papier : ${label}`,
+        message: `Plus aucune rame en stock (seuil : ${stock.minQuantity}).`,
+        ...target,
+      });
+    } else if (level === 'LOW') {
+      await this.resolve(tx, tenantId, [out]);
+      await this.raise(tx, tenantId, {
+        type: 'PAPER_LOW',
+        severity: 'WARNING',
+        dedupeKey: low,
+        title: `Papier bas : ${label}`,
+        message: `${stock.quantity} rame(s) en stock pour un seuil de ${stock.minQuantity}.`,
+        ...target,
+      });
+    } else {
+      await this.resolve(tx, tenantId, [low, out]);
     }
   }
 
@@ -302,6 +342,8 @@ function toAlert(row: AlertRow): Alert {
     stockId: row.stockId,
     site: row.site,
     channel: row.channel,
+    paperStockId: row.paperStockId,
+    planId: row.planId,
     openedAt: row.openedAt.toISOString(),
     lastSeenAt: row.lastSeenAt.toISOString(),
     acknowledgedAt: row.acknowledgedAt?.toISOString() ?? null,

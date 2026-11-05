@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
 import { stockApi, stockKeys } from './api';
 
 /** Premier message d'erreur d'une validation : le formulaire l'affiche tel quel. */
-function firstIssue(error: z.ZodError): string {
+export function firstIssue(error: z.ZodError): string {
   return error.issues[0]?.message ?? 'Saisie invalide.';
 }
 
@@ -37,7 +37,7 @@ interface FormDialogProps {
   children: ReactNode;
 }
 
-function FormDialog({
+export function FormDialog({
   open,
   onOpenChange,
   title,
