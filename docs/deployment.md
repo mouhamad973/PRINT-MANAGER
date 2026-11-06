@@ -5,6 +5,8 @@ ARKSEN PRINT MANAGER s'installe de deux façons, avec les mêmes images :
 - **Cloud** : un serveur public opéré par Arksen, plusieurs entreprises clientes, certificat Let's Encrypt.
 - **On-Premise** : le serveur d'une entreprise, sur son réseau local, sans accès Internet requis, certificat signé par une autorité locale.
 
+Pour un serveur On-Premise **sans aucun accès Internet**, utilisez le paquet hors ligne et ses installateurs : [offline.md](offline.md).
+
 La pile de développement (`docker compose up`, [development.md](development.md)) n'est pas faite pour la production : elle publie la base, Redis et l'API sur l'hôte.
 
 ## Prérequis

@@ -1,0 +1,42 @@
+# Installation hors ligne : s'ajoute à compose.prod.yaml et compose.onprem.yaml sur un serveur
+# sans accès Internet. Les images viennent du paquet hors ligne (docker load), jamais d'un
+# registre ni d'une construction : rien n'est téléchargé. ARKSEN_VERSION est écrit dans
+# .env.production par l'installateur (docs/offline.md).
+x-offline-image: &offline
+  build: !reset null
+  pull_policy: never
+
+services:
+  postgres:
+    pull_policy: never
+
+  redis:
+    pull_policy: never
+
+  migrate:
+    <<: *offline
+    image: arksen-prod-migrate:${ARKSEN_VERSION:?ARKSEN_VERSION manquant (version du paquet)}
+
+  analytics:
+    <<: *offline
+    image: arksen-prod-analytics:${ARKSEN_VERSION}
+
+  api:
+    <<: *offline
+    image: arksen-prod-api:${ARKSEN_VERSION}
+
+  workers:
+    <<: *offline
+    image: arksen-prod-workers:${ARKSEN_VERSION}
+
+  web:
+    <<: *offline
+    image: arksen-prod-web:${ARKSEN_VERSION}
+
+  nginx:
+    <<: *offline
+    image: arksen-prod-nginx:${ARKSEN_VERSION}
+
+  backup:
+    <<: *offline
+    image: arksen-prod-backup:${ARKSEN_VERSION}

@@ -49,7 +49,7 @@ pnpm --filter @arksen/api test:e2e
 
 ## Production
 
-Cette pile de développement publie la base et l'API sur l'hôte : elle ne sert pas en production. Pour une installation Cloud ou On-Premise (HTTPS, sauvegardes, aucun port interne exposé), suivez [docs/deployment.md](docs/deployment.md). La sécurité, le journal d'audit et la conservation des données sont décrits dans [docs/security.md](docs/security.md).
+Cette pile de développement publie la base et l'API sur l'hôte : elle ne sert pas en production. Pour une installation Cloud ou On-Premise (HTTPS, sauvegardes, aucun port interne exposé), suivez [docs/deployment.md](docs/deployment.md). Pour un serveur sans Internet, le paquet hors ligne (`pnpm offline:bundle`) et ses installateurs sont décrits dans [docs/offline.md](docs/offline.md). La sécurité, le journal d'audit et la conservation des données sont décrits dans [docs/security.md](docs/security.md).
 
 ## Développement
 

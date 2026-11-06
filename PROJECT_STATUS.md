@@ -1,6 +1,6 @@
 # État du projet ARKSEN PRINT MANAGER
 
-Dernière mise à jour : 5 novembre 2026 (Phase 10 validée : toutes les phases sont terminées).
+Dernière mise à jour : 6 novembre 2026 (installation hors ligne ajoutée après la Phase 10).
 
 ## Avancement
 
@@ -86,6 +86,40 @@ Comportement en panne, vérifié sur la stack réelle :
 - **Starlette** signale la dépréciation de `httpx` pour son client de test. Cela ne concerne que les tests.
 - **Licences AGPL :** résolu en Phase 6. PyMuPDF et Ghostscript ont été écartés au profit de PDFium (`pypdfium2`, BSD et Apache 2.0) et de LittleCMS (MIT).
 - **Aucun commit :** résolu, chaque phase est commitée et poussée.
+
+## Complément : installation hors ligne
+
+### Livré
+
+- **Paquet hors ligne :** `scripts/offline-bundle.mjs` (`pnpm offline:bundle`) construit les images de production et les marque de la version du paquet (`<version>-<commit>`). Il les exporte compressées avec PostgreSQL et Redis, puis y ajoute les fichiers Compose, les installateurs, la notice et l'agent de collecte, avec `SHA256SUMS.txt`. Taille mesurée : 1,12 Go.
+- **Surcouche `compose.offline.yaml` :** remplace chaque construction par l'image versionnée du paquet (`build: !reset`, `pull_policy: never`). Le serveur ne télécharge rien.
+- **Installateurs `install.ps1` (Windows) et `install.sh` (Linux)**, dans `infrastructure/offline/` :
+  - vérifient Docker, Compose 2.24 ou plus récent et chaque empreinte ;
+  - copient les fichiers dans `C:\ARKSEN` ou `/opt/arksen` ;
+  - à la première installation, posent les questions et génèrent les secrets ; `.env.production` est réservé aux administrateurs ;
+  - chargent les images ;
+  - sauvegardent la base avant une mise à jour ;
+  - démarrent ARKSEN et attendent que tout soit sain ;
+  - effacent ensuite l'e-mail et le mot de passe du Super Administrateur de `.env.production` ;
+  - récupèrent `arksen-ca.pem` et créent le raccourci `arksen` / `arksen.cmd`.
+- **Documentation :** `docs/offline.md`, copiée dans le paquet sous le nom `LISEZMOI.md`. Liens ajoutés dans `deployment.md` et le README.
+
+### Vérifié
+
+- **Méthode :** paquet construit puis testé sur ce poste, dans des projets Docker séparés (ports 9080 et 9443). Les images du paquet avaient été retirées de Docker, pour qu'elles ne puissent venir que du `docker load`.
+- **`install.ps1` :**
+  - installation complète, tous les services sains ;
+  - connexion du Super Administrateur avec un mot de passe contenant `$`, `#`, des espaces et des guillemets ; un mauvais mot de passe est refusé (401) ;
+  - mot de passe absent du fichier et de l'environnement du conteneur ;
+  - le raccourci `arksen.cmd` fonctionne ;
+  - un second lancement (mise à jour) sauvegarde la base puis redémarre, en gardant la configuration.
+- **`install.sh`** (Git Bash) : installation complète, connexion vérifiée, raccourci `arksen` fonctionnel. Un fichier du paquet modifié est détecté, et l'installation s'arrête.
+- **Installation existante (`arksen-prod`) :** non touchée.
+
+### Points restants
+
+- `install.sh` n'a été exécuté que sous Git Bash : il reste à le valider sur un vrai serveur Debian ou Ubuntu.
+- Docker n'est pas inclus dans le paquet : ses fichiers d'installation hors ligne sont à apporter à part (licence Docker Desktop à vérifier pour les grandes entreprises).
 
 ## Phase 10 : Rapports et déploiement commercial
 
@@ -851,6 +885,12 @@ Vérification dans le navigateur : redirection vers `/login` avec retour à la p
 - **Points de la Phase 1 toujours ouverts :** ESLint 10, licences AGPL de la Phase 6, aucun commit.
 
 ## Journal des modifications
+
+### 6 novembre 2026 : installation hors ligne
+
+- **Infrastructure :** `compose.offline.yaml` ; installateurs `infrastructure/offline/install.ps1` et `install.sh`.
+- **Scripts :** `scripts/offline-bundle.mjs` et commande `pnpm offline:bundle`.
+- **Documentation :** `docs/offline.md` ; liens dans `deployment.md` et le README.
 
 ### 5 novembre 2026 : Phase 10
 

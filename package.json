@@ -22,7 +22,8 @@
     "stack:up": "docker compose up --build --detach --wait",
     "stack:down": "docker compose down",
     "stack:logs": "docker compose logs --follow",
-    "stack:smoke": "node scripts/smoke.mjs"
+    "stack:smoke": "node scripts/smoke.mjs",
+    "offline:bundle": "node scripts/offline-bundle.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
