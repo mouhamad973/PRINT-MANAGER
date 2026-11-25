@@ -1,6 +1,6 @@
 # État du projet ARKSEN PRINT MANAGER
 
-Dernière mise à jour : 6 novembre 2026 (installation hors ligne ajoutée après la Phase 10).
+Dernière mise à jour : 25 novembre 2026 (correction du frontal Nginx après un redémarrage).
 
 ## Avancement
 
@@ -885,6 +885,12 @@ Vérification dans le navigateur : redirection vers `/login` avec retour à la p
 - **Points de la Phase 1 toujours ouverts :** ESLint 10, licences AGPL de la Phase 6, aucun commit.
 
 ## Journal des modifications
+
+### 25 novembre 2026 : correction du frontal Nginx
+
+- **Problème :** au démarrage de Docker (après un redémarrage du poste), les conteneurs repartent dans le désordre. Nginx gardait l'adresse IP du frontend lue à son propre démarrage et répondait 502 dès que le frontend changeait d'adresse.
+- **Correction :** `arksen.conf.template` interroge le DNS interne de Docker (`resolver 127.0.0.11 valid=10s`) et relit l'adresse du frontend (`server web:3000 resolve`, zone partagée).
+- **Vérifié :** frontend forcé sur une nouvelle adresse IP sans redémarrer Nginx. La page de connexion répond de nouveau en 200 dès que le frontend est prêt.
 
 ### 6 novembre 2026 : installation hors ligne
 

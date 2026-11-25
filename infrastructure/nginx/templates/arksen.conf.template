@@ -3,8 +3,14 @@
 # Les variables ${...} sont remplacées au démarrage du conteneur (image officielle nginx) ;
 # celles de nginx ($host, $remote_addr...) ne sont pas touchées.
 
+# DNS interne de Docker. L'adresse du frontend est relue toutes les 10 secondes : après un
+# redémarrage (ou un démarrage de Docker où les conteneurs partent dans le désordre), le
+# frontend change d'adresse IP, et une adresse figée au démarrage de nginx donnerait des 502.
+resolver 127.0.0.11 valid=10s ipv6=off;
+
 upstream arksen_web {
-    server web:3000;
+    zone arksen_web 64k;
+    server web:3000 resolve;
     keepalive 16;
 }
 
